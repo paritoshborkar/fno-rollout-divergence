@@ -2,7 +2,7 @@
 # Bootstrap a fresh Linux GPU instance (e.g. LambdaLabs) to run this repo.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/paritoshborkar/fno-rollout-divergence/refs/heads/feat/setup-repo/scripts/setup_remote.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/paritoshborkar/fno-rollout-divergence/refs/heads/main/scripts/setup_remote.sh | bash
 # or copy this file to the instance and run it directly.
 #
 # Override REPO_URL/REPO_DIR as env vars if needed, e.g.:
