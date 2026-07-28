@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+.vscode/
+
+outputs/
+wandb/
+
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep

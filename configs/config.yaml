@@ -1,0 +1,19 @@
+defaults:
+  - data: default
+  - model: fno2d
+  - training: default
+  - _self_
+
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: true
+
+wandb:
+  project: fno-rollout-divergence
+  entity: null
+  mode: offline
+  tags: []
+
+seed: 42

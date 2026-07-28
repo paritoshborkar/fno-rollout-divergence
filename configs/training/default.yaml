@@ -1,0 +1,10 @@
+epochs: 100
+
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-3
+
+checkpoints:
+  path: outputs/checkpoints
+  save_every: 100
+  keep_best: true # if lowest validation score epoch should be saved as well

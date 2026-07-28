@@ -1,0 +1,5 @@
+path: data/processed/trajectory.nc
+
+split:
+  train: 0.8
+  val: 0.1
