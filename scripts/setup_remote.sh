@@ -39,8 +39,8 @@ cd "$REPO_DIR"
 echo "==> Installing Python dependencies (uv sync)"
 uv sync
 
-echo "==> Installing Julia dependencies (Oceananigans project)"
-julia --project=julia/oceananigans -e 'using Pkg; Pkg.instantiate()'
+echo "==> Installing Julia dependencies (GeophysicalFlows project)"
+julia --project=julia/datagen -e 'using Pkg; Pkg.instantiate()'
 
 echo "==> Done. Repo ready at $REPO_DIR"
 echo "    Start a new shell (or 'source ~/.bashrc') to pick up uv/julia on PATH permanently."

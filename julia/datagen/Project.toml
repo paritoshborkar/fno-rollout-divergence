@@ -1,5 +1,5 @@
 name = "OceananigansDataGen"
 
 [deps]
+GeophysicalFlows = "44ee3b1c-bc02-53fa-8355-8e347616e15e"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
-Oceananigans = "9e8cae18-63c1-5223-a75c-80ca9d6e9a09"
