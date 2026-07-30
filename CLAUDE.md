@@ -25,7 +25,7 @@ uv run python <script>   # run a script in the venv
 | `hydra-core` + `omegaconf` | Hierarchical config management for experiments |
 | `wandb` | Experiment tracking and logging |
 | `matplotlib` | Plotting/visualization |
-| `xarray` + `netcdf4` | Reading NetCDF trajectory data (e.g. Oceananigans output) |
+| `xarray` + `netcdf4` | Reading NetCDF trajectory data (e.g. GeophysicalFlows.jl output) |
 
 ## Repository Structure
 
@@ -46,8 +46,8 @@ data/
   raw/, processed/                # gitignored except .gitkeep; processed/trajectory.nc is the
                                    # default dataset path referenced by configs/data/default.yaml
 
-julia/oceananigans/               # separate Julia toolchain (juliaup) for generating trajectory
-                                   # data with Oceananigans.jl; has its own Project.toml/Manifest.toml,
+julia/datagen/                     # separate Julia toolchain (juliaup) for generating trajectory
+                                   # data with GeophysicalFlows.jl; has its own Project.toml/Manifest.toml,
                                    # independent of the uv-managed Python environment
 ```
 
@@ -64,13 +64,15 @@ uv run python -m fno_rollout_divergence.train wandb.mode=offline training.epochs
 
 Hydra's `hydra.run.dir` (`outputs/<date>/<time>/`, gitignored) is the per-run working directory (`hydra.job.chdir: true`) — logs and training artifacts for a run should be written there rather than to a separate top-level directory. OmegaConf structured configs are used for type-safe config validation.
 
-## Data Generation (Oceananigans.jl)
+## Data Generation (GeophysicalFlows.jl)
 
 Trajectory datasets are generated separately via Julia, not part of the `uv` environment:
 
 ```bash
-cd julia/oceananigans
-julia --project=. scripts/generate_dataset.jl   # writes data/trajectory.nc there
+cd julia/datagen
+julia --project=. scripts/ns2d_data.jl   # intended to write a trajectory dataset under data/
 ```
+
+`ns2d_data.jl` is a work in progress — check it before assuming it produces a NetCDF trajectory file yet.
 
 Move/symlink the resulting NetCDF file into `data/processed/` to match `configs/data/default.yaml`'s `path`. Julia isn't on `PATH` in non-interactive shells by default — use `~/.juliaup/bin/julia` if `julia` isn't found.
