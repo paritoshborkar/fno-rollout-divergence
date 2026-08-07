@@ -1,5 +1,5 @@
 # @package _global_
-# Usage: uv run python -m fno_rollout_divergence.train +experiment=baseline
+# Usage: uv run python -m fnorollout.train +experiment=baseline
 training:
   epochs: 200
   lr: 5e-4
