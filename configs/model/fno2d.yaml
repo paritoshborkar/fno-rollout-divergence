@@ -1,4 +1,4 @@
-_target_: fno_rollout_divergence.models.fno.build_fno2d
+_target_: fnorollout.models.fno.build_fno2d
 in_channels: 2
 out_channels: 2
 n_modes: [16, 16]

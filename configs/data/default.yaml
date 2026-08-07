@@ -1,4 +1,4 @@
-path: data/processed/trajectory.nc
+path: data/processed/trajectory_example.nc
 
 split:
   train: 0.8
