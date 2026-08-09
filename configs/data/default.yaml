@@ -1,5 +1,17 @@
 path: data/processed/trajectory_example.nc
 
+
+trajectory:
+  rollout_steps: 1
+
+dataloader:
+  train:
+    batch_size: 16
+  val:
+    batch_size: 16
+  test:
+    batch_size: 16
+
 split:
   train: 0.8
   val: 0.1
