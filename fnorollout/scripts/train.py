@@ -12,10 +12,12 @@ from pathlib import Path
 import hydra
 import torch
 from hydra.core.hydra_config import HydraConfig
+from hydra.utils import instantiate
 from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Subset
 
 from fnorollout.scripts.data import load_dataset_from_file
+from neuralop.models import FNO
 
 
 def create_dataloaders(data_config: DictConfig):
@@ -28,19 +30,26 @@ def create_dataloaders(data_config: DictConfig):
     val_index = train_index + int(len(dataset) * val_split)
 
     train_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index)), batch_size=data_config.dataloader.train.batch_size
+        dataset=Subset(dataset, range(train_index)),
+        batch_size=data_config.dataloader.train.batch_size,
     )
     val_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index, val_index)), batch_size=data_config.dataloader.val.batch_size
+        dataset=Subset(dataset, range(train_index, val_index)),
+        batch_size=data_config.dataloader.val.batch_size,
     )
 
     test_loader = DataLoader(
-        dataset=Subset(dataset, range(val_index, len(dataset))), batch_size=data_config.dataloader.test.batch_size
+        dataset=Subset(dataset, range(val_index, len(dataset))),
+        batch_size=data_config.dataloader.test.batch_size,
     )
 
     test_resolution = dataset[0]["x"].shape[-1]
     test_loaders = {test_resolution: test_loader}
     return train_loader, val_loader, test_loaders
+
+
+def load_optimizer(train_config: DictConfig, model):
+    return instantiate(train_config.optimizer, params=model.parameters())
 
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
@@ -60,10 +69,17 @@ def main(config: DictConfig) -> None:
         data_config=data_config
     )
 
+    print("Instantiating model")
+    model: FNO = instantiate(model_config)
+    model.to(device=DEVICE)
+    print(f"Instantiated model {model_config._target_}")
+
+    print("Creating optimizer")
+    optimizer = load_optimizer(train_config=train_config, model=model)
+    print(f"Finished loading {train_config.optimizer._target_} optimizer")
+
 
 if __name__ == "__main__":
-    # Instantiate model and optimizer
-
     # Create training loop
     ## Use training config values to run training loop
     ## Track experiment and save artifacts
