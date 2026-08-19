@@ -4,7 +4,32 @@ optimizer:
   _target_: torch.optim.AdamW
   lr: 1e-3
 
+dataloader:
+  train:
+    batch_size: 16
+  val:
+    batch_size: 16
+  test:
+    batch_size: 16
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.CosineAnnealingLR
+  T_max: ${training.epochs}
+
+training_loss:
+  _target_: neuralop.H1Loss
+  d: 2
+
+eval_losses:
+  h1:
+    _target_: neuralop.H1Loss
+    d: 2 # dimension of input functions
+  l2:
+    _target_: neuralop.LpLoss
+    d: 2 # dimension of input functions
+    p: 2 # L2 norm
+
 checkpoints:
-  path: outputs/checkpoints
+  path: checkpoints
   save_every: 100
   keep_best: true # if lowest validation score epoch should be saved as well

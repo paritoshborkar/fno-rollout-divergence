@@ -1,0 +1,3 @@
+_target_: neuralop.LpLoss
+d: 2 # dimension of input functions
+p: 2 # L2 norm

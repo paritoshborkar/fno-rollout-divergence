@@ -1,0 +1,5 @@
+name: default
+rollout_steps: 500  # long horizon; MUST be >= training.train_horizon
+n_seeds: 3  # variance bands on every metric
+metrics:
+  drift_curve: true # rollout relative-L2 vs lead time

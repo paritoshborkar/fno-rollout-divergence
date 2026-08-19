@@ -1,0 +1,2 @@
+_target_: neuralop.H1Loss
+d: 2 # dimension of input functions
