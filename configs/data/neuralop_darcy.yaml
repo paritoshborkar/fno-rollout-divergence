@@ -1,7 +1,0 @@
-# Config to load data from the neuralop package's darcy equation example
-
-n_train: 1000 # Number of training snapshots
-batch_size: 64
-n_tests: [100, 50] # Number of testing snapshots per test dataset
-test_resolution: [16, 32] # Grid resolution of test datasets
-test_batch_sizes: [32, 32,] # Number of batches per 

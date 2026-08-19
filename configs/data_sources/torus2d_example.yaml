@@ -1,0 +1,6 @@
+# Config to load vorticity data defined on a 2D torus with oscillating external forcing 
+
+name: torus2d_vorticity
+type: local
+path: data/processed/torus2d_trajectory.nc
+channels: [zeta]

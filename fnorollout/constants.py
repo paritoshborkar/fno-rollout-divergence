@@ -10,3 +10,9 @@ class DataConfigKey(Enum):
     N_TESTS = "n_tests"
     TEST_RESOLUTION = "test_resolution"
     TEST_BATCH_SIZES = "test_batch_sizes"
+
+
+class DataSourceType(str, Enum):
+    LOCAL = "local"
+    URL = "url"
+    PACKAGE = "package"

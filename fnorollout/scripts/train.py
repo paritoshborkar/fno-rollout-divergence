@@ -11,45 +11,63 @@ from pathlib import Path
 
 import hydra
 import torch
+import wandb
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
-from omegaconf import DictConfig
-from torch.utils.data import DataLoader, Subset
-
-from fnorollout.scripts.data import load_dataset_from_file
 from neuralop.models import FNO
+from neuralop.training import Trainer
+from omegaconf import DictConfig, OmegaConf
 
-
-def create_dataloaders(data_config: DictConfig):
-    dataset = load_dataset_from_file(data_config=data_config)
-
-    train_split = data_config.split.train
-    val_split = data_config.split.val
-
-    train_index = int(len(dataset) * train_split)
-    val_index = train_index + int(len(dataset) * val_split)
-
-    train_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index)),
-        batch_size=data_config.dataloader.train.batch_size,
-    )
-    val_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index, val_index)),
-        batch_size=data_config.dataloader.val.batch_size,
-    )
-
-    test_loader = DataLoader(
-        dataset=Subset(dataset, range(val_index, len(dataset))),
-        batch_size=data_config.dataloader.test.batch_size,
-    )
-
-    test_resolution = dataset[0]["x"].shape[-1]
-    test_loaders = {test_resolution: test_loader}
-    return train_loader, val_loader, test_loaders
+from fnorollout.schemas.configs import Config
+from fnorollout.scripts.data import create_dataloaders, create_neuralop_test_dataloaders
 
 
 def load_optimizer(train_config: DictConfig, model):
     return instantiate(train_config.optimizer, params=model.parameters())
+
+
+def load_scheduler(train_config: DictConfig, optimizer):
+    return instantiate(train_config.scheduler, optimizer=optimizer)
+
+
+def init_wandb(config: DictConfig) -> None:
+    wandb.init(
+        project=config.wandb.project,
+        entity=config.wandb.entity,
+        mode=config.wandb.mode,
+        tags=list(config.wandb.tags),
+        config=OmegaConf.to_container(config, resolve=True),
+    )
+
+
+def train_loop(
+    trainer: Trainer,
+    train_config: DictConfig,
+    train_dataloader,
+    test_dataloaders,
+    optimizer,
+    scheduler,
+):
+    training_loss = instantiate(train_config.training_loss)
+    eval_losses = instantiate(train_config.eval_losses)
+
+    save_best = None
+    if train_config.checkpoints.keep_best:
+        loader_name = next(iter(test_dataloaders))
+        loss_name = next(iter(eval_losses))
+        save_best = f"{loader_name}_{loss_name}"
+
+    return trainer.train(
+        train_loader=train_dataloader,
+        test_loaders=test_dataloaders,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        training_loss=training_loss,
+        eval_losses=eval_losses,
+        save_every=train_config.checkpoints.save_every,
+        save_best=save_best,
+        save_dir=train_config.checkpoints.path,
+    )
 
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
@@ -59,14 +77,23 @@ def main(config: DictConfig) -> None:
 
     output_dir = Path(HydraConfig.get().runtime.output_dir)
 
+    raw_config = OmegaConf.to_container(config)
+    _ = Config(**raw_config) # Validates main config with pydatic
+
     print("Loaded data, model and training configs")
+    print(config)
+
+    init_wandb(config)
 
     data_config = config.data
     model_config = config.model
     train_config = config.training
 
-    train_dataloader, val_dataloader, test_dataloaders = create_dataloaders(
-        data_config=data_config
+    train_dataloader, val_dataloader = create_dataloaders(
+        data_config=data_config, train_config=train_config
+    )
+    test_dataloaders = create_neuralop_test_dataloaders(
+        data_config=data_config, train_config=train_config
     )
 
     print("Instantiating model")
@@ -74,16 +101,35 @@ def main(config: DictConfig) -> None:
     model.to(device=DEVICE)
     print(f"Instantiated model {model_config._target_}")
 
-    print("Creating optimizer")
+    print("Creating optimizer and scheduler")
     optimizer = load_optimizer(train_config=train_config, model=model)
+    scheduler = load_scheduler(train_config=train_config, optimizer=optimizer)
     print(f"Finished loading {train_config.optimizer._target_} optimizer")
+    print(f"Finished loading {train_config.scheduler._target_} scheduler")
+
+    print("Creating trainer")
+    trainer = Trainer(
+        model=model,
+        n_epochs=train_config.epochs,
+        device=DEVICE,
+        wandb_log=True,
+        verbose=True,
+    )
+
+    print("Starting training loop")
+    train_loop(
+        trainer=trainer,
+        train_config=train_config,
+        train_dataloader=train_dataloader,
+        test_dataloaders=test_dataloaders,
+        optimizer=optimizer,
+        scheduler=scheduler,
+    )
+
+    wandb.finish()
 
 
 if __name__ == "__main__":
-    # Create training loop
-    ## Use training config values to run training loop
-    ## Track experiment and save artifacts
-
     # Measure model performance
     ## Apart from loss define metrics to measure model performance
 
