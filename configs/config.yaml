@@ -2,7 +2,7 @@ defaults:
   - data: default
   - model: fno2d
   - training: default
-  - loss: h1
+  - loss: default
   - eval: default
   - _self_
 
