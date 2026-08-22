@@ -50,7 +50,7 @@ def train_loop(
     scheduler,
 ):
     training_loss = instantiate(next(iter(loss_config.training_loss.values())))
-    eval_losses = instantiate(train_config.eval_losses)
+    eval_losses = instantiate(loss_config.eval_losses)
 
     save_best = None
     if train_config.checkpoints.keep_best:
