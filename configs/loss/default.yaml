@@ -1,0 +1,5 @@
+defaults:
+  - /loss@training_loss.h1: h1
+  - /loss@eval_losses.h1: h1
+  - /loss@eval_losses.l2: l2
+  - _self_

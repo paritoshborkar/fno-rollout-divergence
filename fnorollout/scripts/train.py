@@ -43,12 +43,13 @@ def init_wandb(config: DictConfig) -> None:
 def train_loop(
     trainer: Trainer,
     train_config: DictConfig,
+    loss_config: DictConfig,
     train_dataloader,
     test_dataloaders,
     optimizer,
     scheduler,
 ):
-    training_loss = instantiate(train_config.training_loss)
+    training_loss = instantiate(next(iter(loss_config.training_loss.values())))
     eval_losses = instantiate(train_config.eval_losses)
 
     save_best = None
@@ -81,13 +82,13 @@ def main(config: DictConfig) -> None:
     _ = Config(**raw_config) # Validates main config with pydatic
 
     print("Loaded data, model and training configs")
-    print(config)
 
     init_wandb(config)
 
     data_config = config.data
     model_config = config.model
     train_config = config.training
+    loss_config = config.loss
 
     train_dataloader, val_dataloader = create_dataloaders(
         data_config=data_config, train_config=train_config
@@ -120,6 +121,7 @@ def main(config: DictConfig) -> None:
     train_loop(
         trainer=trainer,
         train_config=train_config,
+        loss_config=loss_config,
         train_dataloader=train_dataloader,
         test_dataloaders=test_dataloaders,
         optimizer=optimizer,
