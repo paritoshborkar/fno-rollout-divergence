@@ -20,6 +20,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from fnorollout.schemas.configs import Config
 from fnorollout.scripts.data import create_dataloaders, create_neuralop_test_dataloaders
+from fnorollout.scripts.util import set_seeds
 
 
 def load_optimizer(train_config: DictConfig, model):
@@ -79,10 +80,11 @@ def main(config: DictConfig) -> None:
     output_dir = Path(HydraConfig.get().runtime.output_dir)
 
     raw_config = OmegaConf.to_container(config)
-    _ = Config(**raw_config) # Validates main config with pydatic
+    _ = Config(**raw_config)  # Validates main config with pydatic
 
     print("Loaded data, model and training configs")
 
+    set_seeds(seed=config.seed)
     init_wandb(config)
 
     data_config = config.data
