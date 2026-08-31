@@ -1,0 +1,22 @@
+# Simulation parameters for scripts/qb_beta_turbulence.jl
+# From GeophysicalFlows SingleLayer QG Beta-plane turbulence example:
+# https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable/literated/singlelayerqg_betaforced/
+
+seed = 42
+
+[numerics]
+n = 128                   # 2D resolution = n^2
+stepper = "FilteredRK4"   # timestepper
+dt = 0.05                 # timestep
+nsteps = 8000             # total number of time-steps
+save_substeps = 10        # number of timesteps after which output is saved
+
+[physics]
+Lx_over_pi = 2.0  # domain size, L = Lx_over_pi * pi
+beta = 10.0       # planetary potential vorticity gradient
+mu = 0.01         # bottom drag
+
+[forcing]
+wavenumber_coefficient = 14.0  # k_f = wavenumber_coefficient * 2*pi/L, ring wavenumber for the forcing spectrum
+bandwidth_coefficient = 1.5    # delta_f = bandwidth_coefficient * 2*pi/L, width of the forcing spectrum
+epsilon = 0.001                # energy input rate by the forcing
