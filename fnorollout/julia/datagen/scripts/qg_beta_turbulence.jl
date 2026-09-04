@@ -12,9 +12,46 @@ device = CUDA.functional() ? GPU() : CPU()
 println("Using $device to generate vorticity on the grid")
 
 # --- Simulation Parameters ---
-config_path = length(ARGS) >= 1 ? ARGS[1] : joinpath(@__DIR__, "..", "configs", "qg_beta_turbulence.toml")
+# Any ARGS entry containing '=' is a dotted-key override (e.g. `numerics.nsteps=100`),
+# applied on top of the config file. A lone entry without '=' overrides the config path.
+function parse_override_value(raw::AbstractString)
+    lowered = lowercase(raw)
+    lowered == "true" && return true
+    lowered == "false" && return false
+    int_val = tryparse(Int, raw)
+    int_val !== nothing && return int_val
+    float_val = tryparse(Float64, raw)
+    float_val !== nothing && return float_val
+    return raw
+end
+
+function apply_override!(config::Dict, override::AbstractString)
+    key, raw_value = split(override, '='; limit=2)
+    path = split(key, '.')
+    node = config
+    for k in path[1:end-1]
+        node = get!(node, k, Dict{String,Any}())
+    end
+    node[path[end]] = parse_override_value(raw_value)
+    return config
+end
+
+config_path = joinpath(@__DIR__, "..", "configs", "qg_beta_turbulence.toml")
+overrides = String[]
+for arg in ARGS
+    if occursin('=', arg)
+        push!(overrides, arg)
+    else
+        global config_path = arg
+    end
+end
+
 config = TOML.parsefile(config_path)
 println("Loaded simulation config from $config_path")
+for override in overrides
+    apply_override!(config, override)
+    println("Applied override: $override")
+end
 
 const SEED = Int(config["seed"])
 
@@ -37,7 +74,7 @@ forcing_bandwidth = Float64(config["forcing"]["bandwidth_coefficient"]) * 2π/L 
 ε = Float64(config["forcing"]["epsilon"])                                          # energy input rate by the forcing
 
 # Output paths
-filename = "singlelayerqg_forcedbeta.jld2"
+filename = String(config["output"]["jld2_filename"])
 plotpath = "./plots_forcedbetaturbulence"
 plotname = "snapshots"
 filepath = joinpath(".", filename)
@@ -139,7 +176,7 @@ savediagnostic(enstrophy, "enstrophy", output.path)
 # --- Save to NetCDF5 file ---
 
 infile  = filepath
-outfilename = "singlelayerqg_forcedbeta.nc"
+outfilename = String(config["output"]["nc_filename"])
 
 f = jldopen(infile, "r")
 nx = f["grid/nx"];  ny = f["grid/ny"]
