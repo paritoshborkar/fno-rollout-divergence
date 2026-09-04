@@ -11,13 +11,13 @@ from pathlib import Path
 
 import hydra
 import torch
-import wandb
 from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from neuralop.models import FNO
 from neuralop.training import Trainer
 from omegaconf import DictConfig, OmegaConf
 
+import wandb
 from fnorollout.schemas.configs import Config
 from fnorollout.scripts.data import create_dataloaders, create_neuralop_test_dataloaders
 from fnorollout.scripts.util import set_seeds
@@ -134,9 +134,4 @@ def main(config: DictConfig) -> None:
 
 
 if __name__ == "__main__":
-    # Measure model performance
-    ## Apart from loss define metrics to measure model performance
-
-    # Easily configurable
-    ## Running new experiments should be a matter of just changing the config files
     main()
