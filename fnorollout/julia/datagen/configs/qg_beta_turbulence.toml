@@ -1,4 +1,4 @@
-# Simulation parameters for scripts/qb_beta_turbulence.jl
+# Simulation parameters for scripts/qg_beta_turbulence.jl
 # From GeophysicalFlows SingleLayer QG Beta-plane turbulence example:
 # https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable/literated/singlelayerqg_betaforced/
 
@@ -20,3 +20,7 @@ mu = 0.01         # bottom drag
 wavenumber_coefficient = 14.0  # k_f = wavenumber_coefficient * 2*pi/L, ring wavenumber for the forcing spectrum
 bandwidth_coefficient = 1.5    # delta_f = bandwidth_coefficient * 2*pi/L, width of the forcing spectrum
 epsilon = 0.001                # energy input rate by the forcing
+
+[output]
+jld2_filename = "singlelayerqg_forcedbeta.jld2"  # intermediate FourierFlows/JLD2 output
+nc_filename = "singlelayerqg_forcedbeta.nc"      # final NetCDF trajectory dataset
