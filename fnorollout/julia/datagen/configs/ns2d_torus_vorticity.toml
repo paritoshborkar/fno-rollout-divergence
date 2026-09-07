@@ -1,0 +1,24 @@
+# Simulation parameters for scripts/ns2d_data.jl
+
+seed = 42
+
+[numerics]
+n = 256              # 2D resolution = n^2
+domain_size = 1.0    # unit torus
+nu = 1e-3            # viscosity
+nu_order = 1         # hyperviscosity order (n_nu)
+dt = 1e-4            # timestep
+stepper = "ETDRK4"   # timestepper
+
+[forcing]
+rate = 0.1        # epsilon: energy input rate by the forcing
+wavenumber = 1.0  # forcing wavenumber (k in sin/cos(2*pi*k*(x+y)))
+
+[initial_condition]
+grf_tau = 7.0     # Gaussian Random Field length scale
+grf_alpha = 2.5   # Gaussian Random Field spectral slope
+
+[output]
+n_snapshots = 50           # number of vorticity snapshots to save
+save_interval = 1.0        # time units between saved snapshots
+nc_filename = "vorticity_torus.nc"
