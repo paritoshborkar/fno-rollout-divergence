@@ -2,5 +2,5 @@
 
 name: torus2d_vorticity
 type: local
-path: data/processed/torus2d_trajectory.nc
+path: data/raw/torus2d_trajectory.nc
 channels: [zeta]

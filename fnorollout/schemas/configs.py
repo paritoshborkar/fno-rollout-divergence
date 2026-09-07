@@ -3,6 +3,17 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from fnorollout.schemas.data_source import DataSource
 
 
+class PreprocessingConfig(BaseModel):
+    """Schema for the `data.preprocessing` block (configs/data/*.yaml)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    fields: list[str]
+    normalizer: dict[
+        str, object
+    ]  # Hydra-instantiable normalizer config (_target_, ...)
+
+
 class DataConfig(BaseModel):
     """Schema for the `data` config group (configs/data/*.yaml)."""
 
@@ -10,6 +21,7 @@ class DataConfig(BaseModel):
 
     sources: dict[str, DataSource]
     test_sources: dict[str, DataSource] | None = None
+    preprocessing: PreprocessingConfig
 
 
 class ModelConfig(BaseModel):

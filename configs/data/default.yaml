@@ -9,3 +9,10 @@ trajectory:
 split:
   train: 0.8
   val: 0.2
+
+preprocessing:
+  fields: [x, y]  # Dataset fields to fit a normalizer for
+  normalizer:
+    _target_: neuralop.data.transforms.normalizers.UnitGaussianNormalizer.from_dataset
+    _convert_: all  # plain python lists (not ListConfig) for e.g. torch.mean(..., dim=...)
+    dim: [0, 2, 3]  # dims to reduce over when fitting; must include the batch dim (0)
