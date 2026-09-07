@@ -33,39 +33,57 @@ uv run python <script>   # run a script in the venv
 ```
 configs/                        # Hydra config groups
   config.yaml                    #   root: defaults list (data, model, training, loss, eval), hydra.run.dir, wandb settings
-  data/default.yaml               #   selects named sources from data_sources/ for train/test, train/val split
+  data/default.yaml               #   selects named sources from data_sources/ for train/test, train/val split,
+                                   #   and a `preprocessing` block (fields to normalize, normalizer `_target_`)
   data_sources/                   #   reusable named data source defs (local file, package, url); referenced from
                                    #   configs/data/*.yaml via Hydra defaults + `@` package overrides, e.g.
                                    #   `- /data_sources@sources.<name>: <name>`
   model/fno2d.yaml
-  training/default.yaml           #   optimizer, scheduler, dataloader batch sizes, training_loss, eval_losses, checkpoints
-  loss/                           #   standalone h1.yaml/l2.yaml — not currently referenced by anything; training's
-                                   #   own training_loss/eval_losses inline their own _target_s instead
+  training/default.yaml           #   optimizer, scheduler, dataloader batch sizes, checkpoints (path, save_every,
+                                   #   keep_best) — training_loss/eval_losses live in the loss config group, not here
+  loss/                           #   standalone h1.yaml/l2.yaml wired together by default.yaml via Hydra defaults +
+                                   #   `@` package overrides (same pattern as data_sources): `/loss@training_loss.h1: h1`,
+                                   #   `/loss@eval_losses.h1: h1`, `/loss@eval_losses.l2: l2`. train.py reads
+                                   #   config.loss.training_loss / config.loss.eval_losses (not config.training.*).
+                                   #   train_loop() picks training_loss via `next(iter(...))` — only the first entry
+                                   #   under training_loss is ever used, so adding a second one silently has no effect.
   eval/default.yaml               #   long-horizon rollout eval settings — not yet wired into any script
   experiment/baseline.yaml        #   +experiment=<name> override bundles (use `# @package _global_`)
 
 fnorollout/                      # Python package (flat layout, no src/), imported as `fnorollout.*`
-  data/                           #   TrajectoryDataset (multi-channel NetCDF loader) + preprocessing (stub)
+  data/                           #   TrajectoryDataset (multi-channel NetCDF loader)
   models/                         #   FNO construction from the `model` config group (build_fno2d)
-  schemas/                        #   pydantic models validating the composed config (Config, DataConfig, DataSource)
+  schemas/                        #   pydantic models validating the composed config (Config, DataConfig,
+                                   #   PreprocessingConfig, DataSource)
   scripts/
-    train.py                       #   @hydra.main entrypoint: builds model/optimizer/scheduler/Trainer,
-                                    #   runs training via neuralop's Trainer, logs to wandb
+    train.py                       #   @hydra.main entrypoint: builds model/optimizer/scheduler/Trainer/
+                                    #   data_processor, runs training via neuralop's Trainer, logs to wandb
     data.py                        #   loads datasets from configured sources (dispatched by DataSourceType),
                                     #   builds train/val/test dataloaders
+    preprocessing.py               #   build_data_processor: instantiates+fits a normalizer (per data.preprocessing's
+                                    #   `_target_`, e.g. UnitGaussianNormalizer.from_dataset) into a DataProcessor for
+                                    #   neuralop's Trainer; save_data_processor persists its stats alongside a checkpoint
   julia/datagen/                  #   Julia toolchain (juliaup) for generating trajectory data with
                                    #   GeophysicalFlows.jl; own Project.toml/Manifest.toml, independent of
                                    #   the uv-managed Python environment
+    configs/*.toml                  #   per-script simulation parameters, parsed with Julia's stdlib TOML (not
+                                     #   Hydra) — see Data Generation below for the CLI override syntax
+    scripts/qg_beta_turbulence.jl    #   implemented: SingleLayerQG beta-plane turbulence, writes a NetCDF via
+                                     #   configs/qg_beta_turbulence.toml's [output] filenames
+    scripts/ns2d_data.jl             #   work in progress — check it before assuming it produces a NetCDF file
 
 scripts/                         # Top-level, NOT part of the fnorollout package — don't confuse with fnorollout/scripts/
-  plot_vorticity.py                #   quick NetCDF vorticity plotting utility
+  plot_trajectory_video.py         #   renders a NetCDF trajectory as an animated gif/mp4, one frame per time
+                                    #   snapshot; auto-detects whether the time dim/coord is named "time" or "t"
+  plot_vorticity.py                #   quick NetCDF vorticity plotting utility (expects a "time" coord)
   setup_remote.sh                   #   bootstrap script for a fresh GPU instance
 
 notebooks/                       # Exploratory Jupyter notebooks (prototyping only, not the source of truth)
 
 data/
-  raw/, processed/                # gitignored except .gitkeep; processed/torus2d_trajectory.nc is the dataset
-                                   # referenced by configs/data_sources/torus2d_example.yaml's `path`
+  raw/, processed/                # gitignored except .gitkeep. Generated datasets currently land in and are read
+                                   # directly from data/raw/ (e.g. configs/data_sources/torus2d_example.yaml's `path`
+                                   # points at data/raw/torus2d_trajectory.nc) — data/processed/ isn't used yet
 ```
 
 Data source `type` handling in `fnorollout/scripts/data.py` only implements `DataSourceType.LOCAL` — `URL` and `PACKAGE` sources (e.g. `configs/data_sources/neuralop_darcy.yaml`) raise `NotImplementedError`. Check `fnorollout/scripts/data.py` before assuming a non-local source actually loads.
@@ -85,13 +103,20 @@ Hydra's `hydra.run.dir` (`outputs/<date>/<time>/`, gitignored) is the per-run wo
 
 ## Data Generation (GeophysicalFlows.jl)
 
-Trajectory datasets are generated separately via Julia, not part of the `uv` environment:
+Trajectory datasets are generated separately via Julia, not part of the `uv` environment. `scripts/qg_beta_turbulence.jl` (SingleLayerQG beta-plane turbulence) is implemented and produces a NetCDF file; `scripts/ns2d_data.jl` (TwoDNavierStokes) is a work in progress — check it before assuming it produces one yet.
 
 ```bash
 cd fnorollout/julia/datagen
-julia --project=. scripts/ns2d_data.jl   # intended to write a trajectory dataset under data/
+julia --project=. scripts/qg_beta_turbulence.jl
 ```
 
-`ns2d_data.jl` is a work in progress — check it before assuming it produces a NetCDF trajectory file yet.
+`qg_beta_turbulence.jl` reads simulation parameters from a TOML file (default `configs/qg_beta_turbulence.toml`; Julia's stdlib `TOML`, unrelated to Hydra) instead of hardcoding them. Any CLI arg containing `=` is a dotted-key override applied on top of that file (mirroring Hydra's `key=value` overrides); a lone arg without `=` overrides which config file is loaded:
 
-Move/symlink the resulting NetCDF file into `data/processed/` and point a `configs/data_sources/*.yaml` entry's `path` at it (matching its NetCDF variable name(s) in that source's `channels` list). Julia isn't on `PATH` in non-interactive shells by default — use `~/.juliaup/bin/julia` if `julia` isn't found.
+```bash
+julia --project=. scripts/qg_beta_turbulence.jl numerics.nsteps=500 physics.beta=5.0
+julia --project=. scripts/qg_beta_turbulence.jl configs/other_run.toml numerics.stepper=RK4
+```
+
+`qg_beta_turbulence.jl` writes its NetCDF with dims `(x, y, t)` and a `t` coordinate (xarray reads this back as `(t, y, x)`) — this differs from `ns2d_data.jl`'s and the existing `torus2d_trajectory.nc`'s `(y, x, time)`/`time` convention, which `fnorollout/data/datasets.py`'s `TrajectoryDataset` assumes. Reconcile the dim order and coordinate name before wiring a `qg_beta_turbulence.jl` output into a `configs/data_sources/*.yaml` entry, or `TrajectoryDataset`'s blind `.permute(2, 1, 0)` will silently scramble the axes rather than error.
+
+Move/symlink the resulting NetCDF file into `data/raw/` and point a `configs/data_sources/*.yaml` entry's `path` at it (matching its NetCDF variable name(s) in that source's `channels` list). Julia isn't on `PATH` in non-interactive shells by default — use `~/.juliaup/bin/julia` if `julia` isn't found.

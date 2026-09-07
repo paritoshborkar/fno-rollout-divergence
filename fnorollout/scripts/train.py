@@ -20,6 +20,7 @@ from omegaconf import DictConfig, OmegaConf
 import wandb
 from fnorollout.schemas.configs import Config
 from fnorollout.scripts.data import create_dataloaders, create_neuralop_test_dataloaders
+from fnorollout.scripts.preprocessing import build_data_processor, save_data_processor
 from fnorollout.scripts.util import set_seeds
 
 
@@ -39,6 +40,21 @@ def init_wandb(config: DictConfig) -> None:
         tags=list(config.wandb.tags),
         config=OmegaConf.to_container(config, resolve=True),
     )
+
+
+def save_training_artifacts(train_config: DictConfig, data_processor) -> None:
+    """
+    Save the fitted data preprocessor's normalizer stats next to the trainer's model
+    checkpoint (weights + architecture metadata, already written by Trainer.train) and
+    log the directory to wandb, so a checkpoint alone has what's needed to reload the
+    model and preprocess a different test set the same way training data was.
+    """
+    checkpoints_dir = Path(train_config.checkpoints.path)
+    save_data_processor(data_processor, checkpoints_dir)
+
+    artifact = wandb.Artifact(name=f"fno-checkpoint-{wandb.run.id}", type="model")
+    artifact.add_dir(str(checkpoints_dir))
+    wandb.log_artifact(artifact)
 
 
 def train_loop(
@@ -110,11 +126,17 @@ def main(config: DictConfig) -> None:
     print(f"Finished loading {train_config.optimizer._target_} optimizer")
     print(f"Finished loading {train_config.scheduler._target_} scheduler")
 
+    print("Fitting data preprocessor")
+    data_processor = build_data_processor(
+        train_dataloader.dataset, preprocessing_config=data_config.preprocessing
+    )
+
     print("Creating trainer")
     trainer = Trainer(
         model=model,
         n_epochs=train_config.epochs,
         device=DEVICE,
+        data_processor=data_processor,
         wandb_log=True,
         verbose=True,
     )
@@ -129,6 +151,9 @@ def main(config: DictConfig) -> None:
         optimizer=optimizer,
         scheduler=scheduler,
     )
+
+    print("Saving model checkpoint and preprocessor artifacts")
+    save_training_artifacts(train_config=train_config, data_processor=data_processor)
 
     wandb.finish()
 
