@@ -22,5 +22,6 @@ bandwidth_coefficient = 1.5    # delta_f = bandwidth_coefficient * 2*pi/L, width
 epsilon = 0.001                # energy input rate by the forcing
 
 [output]
-jld2_filename = "singlelayerqg_forcedbeta.jld2"  # intermediate FourierFlows/JLD2 output
-nc_filename = "singlelayerqg_forcedbeta.nc"      # final NetCDF trajectory dataset
+nc_filename = "singlelayerqg_forcedbeta.nc"  # final NetCDF trajectory dataset; the
+                                              # intermediate JLD2 file is derived from
+                                              # this path and cleaned up automatically
