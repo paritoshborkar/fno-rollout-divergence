@@ -11,16 +11,18 @@ from pathlib import Path
 
 import hydra
 import torch
-from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from neuralop.models import FNO
 from neuralop.training import Trainer
 from omegaconf import DictConfig, OmegaConf
 
 import wandb
+from fnorollout.data.data_utils import (
+    create_dataloaders,
+    create_neuralop_test_dataloaders,
+)
+from fnorollout.data.preprocessing import build_data_processor, save_data_processor
 from fnorollout.schemas.configs import Config
-from fnorollout.scripts.data import create_dataloaders, create_neuralop_test_dataloaders
-from fnorollout.scripts.preprocessing import build_data_processor, save_data_processor
 from fnorollout.scripts.util import set_seeds
 
 
@@ -92,8 +94,6 @@ def train_loop(
 def main(config: DictConfig) -> None:
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {DEVICE}")
-
-    output_dir = Path(HydraConfig.get().runtime.output_dir)
 
     raw_config = OmegaConf.to_container(config)
     _ = Config(**raw_config)  # Validates main config with pydatic
