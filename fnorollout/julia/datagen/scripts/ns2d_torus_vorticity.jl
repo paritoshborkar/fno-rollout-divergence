@@ -23,7 +23,7 @@ function apply_override!(config::Dict, override::AbstractString)
     key, raw_value = split(override, '='; limit=2)
     path = split(key, '.')
     node = config
-    for k in path[1:end-1]
+    for k in path[1:(end-1)]
         node = get!(node, k, Dict{String,Any}())
     end
     node[path[end]] = parse_override_value(raw_value)
@@ -111,19 +111,27 @@ function run_simulation(config::Dict, output_path::String)
         end
     end
 
-    ζ = cat(frames...; dims=3) # (nx, ny, n_frames)
-    ζ = permutedims(ζ, (3, 1, 2)) # → (time, x, y), matching the xarray convention used elsewhere
+    ζ = cat(frames...; dims=3) # (x, y, n_frames), matching prob.vars.ζ's own (x, y) axis order
 
     mkpath(dirname(output_path))
-    times = collect(1:size(ζ, 1)) .* (save_every * dt)
+    times = collect(1:size(ζ, 3)) .* (save_every * dt)
+
+    # Julia (column-major) dim order: x fastest. xarray/netCDF4 will see this reversed,
+    # as (t, y, x) when reading for loading to torch
 
     NCDataset(output_path, "c") do ds
-        defDim(ds, "time", size(ζ, 1))
         defDim(ds, "x", grid_resolution)
         defDim(ds, "y", grid_resolution)
-        defVar(ds, "time", times, ("time",))
-        v = defVar(ds, "zeta", Float64, ("time", "x", "y"))
+        defDim(ds, "t", size(ζ, 3))
+
+        ct = defVar(ds, "t", Float64, ("t",))
+        ct[:] = times
+        ct.attrib["long_name"] = "model time"
+
+        v = defVar(ds, "zeta", Float64, ("x", "y", "t"))
         v[:, :, :] = ζ
+        v.attrib["long_name"] = "relative vorticity"
+        ds.attrib["axis_order"] = "zeta read as (t, y, x) by xarray/netCDF4"
     end
 
     return output_path

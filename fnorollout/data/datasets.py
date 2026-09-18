@@ -15,13 +15,15 @@ class TrajectoryDataset(Dataset):
 
     def __init__(self, path: Path, channel_names: list[str], rollout_steps: int = 1, channel_dim=1):
         super().__init__()
-        dataset_nc = xr.open_dataset(path)  # y, x, time index order
+        # Julia datagen scripts write NetCDF with dim order (x, y, t); 
+        # xarray/netCDF4 reads that reversed as (t, y, x)
+        dataset_nc = xr.open_dataset(path)
 
         channels = [
-            torch.from_numpy(dataset_nc[channel_name].values).float().permute(2, 1, 0)  # y,x,time -> time,x,y
+            torch.from_numpy(dataset_nc[channel_name].values).float()
             for channel_name in channel_names
         ]
-        self.trajectory = torch.stack(channels, dim=channel_dim)  # time,x,y -> time, channel, x, y
+        self.trajectory = torch.stack(channels, dim=channel_dim)  # t, y, x -> t, channel, y, x
         self.rollout_steps = rollout_steps
 
     def __len__(self):
