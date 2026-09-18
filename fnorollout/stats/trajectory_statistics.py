@@ -14,7 +14,7 @@ class TrajectoryStatistics:
 class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
     def __init__(self, trajectory: torch.Tensor, dx: float = 1.0, dy: float = 1.0):
         """
-        trajectory: torch Tensor tracking vorticity over a 2D grid. Shape: T x X x Y
+        trajectory: torch Tensor tracking vorticity over a 2D grid. Shape: T x Y x X
         dx: grid spacing in the x direction
         dy: grid spacing in the y direction
 
@@ -41,14 +41,22 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
 
     def _wavenumbers(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
-        kx, ky: 1D angular wavenumber axes, based on dx/dy
+        kx, ky: 1D angular wavenumber axes, based on dx/dy. kx has length matching
+        the trajectory's last (X) axis, ky matching its second-to-last (Y) axis
         """
-        nx, ny = self.trajectory.shape[-2], self.trajectory.shape[-1]
+        ny, nx = self.trajectory.shape[-2], self.trajectory.shape[-1]
         device = self.trajectory.device
         kx = 2 * torch.pi * torch.fft.fftfreq(n=nx, d=self.dx, device=device)
         ky = 2 * torch.pi * torch.fft.fftfreq(n=ny, d=self.dy, device=device)
 
         return kx, ky
+
+    def _wavenumber_grids(self) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Kx, Ky: 2D wavenumber grids broadcastable against the trajectory's (Y, X)
+        """
+        Ky, Kx = torch.meshgrid(self.ky, self.kx, indexing="ij")
+        return Kx, Ky
 
     def psd_per_snapshot(
         self, n_bins: int | None = None
@@ -63,10 +71,10 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         zeta_hat = torch.fft.fft2(self.trajectory, dim=(-2, -1))
         power = zeta_hat.abs() ** 2
 
-        Kx, Ky = torch.meshgrid(self.kx, self.ky, indexing="ij")
+        Kx, Ky = self._wavenumber_grids()
         k = torch.sqrt(Kx**2 + Ky**2)
 
-        nx, ny = self.trajectory.shape[-2], self.trajectory.shape[-1]
+        ny, nx = self.trajectory.shape[-2], self.trajectory.shape[-1]
         n_bins = n_bins or max(nx, ny) // 2
         bin_edges = torch.linspace(0, k.max(), n_bins + 1, device=k.device)
         bin_indices = torch.bucketize(k.flatten(), bin_edges[1:-1])
@@ -98,7 +106,7 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         Streamfunction in Fourier space, solved spectrally from vorticity
         (Delta psi = -zeta -> psi_hat = zeta_hat / k^2, zero mode forced to 0)
         """
-        Kx, Ky = torch.meshgrid(self.kx, self.ky, indexing="ij")
+        Kx, Ky = self._wavenumber_grids()
         k2 = Kx**2 + Ky**2
         k2[0, 0] = 1.0  # avoid divide-by-zero; zero mode is forced to 0 below anyway
 
@@ -109,19 +117,20 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         return psi_hat
 
     def _streamfunction_per_snapshot(self) -> torch.Tensor:
-        """Real-space streamfunction derived from vorticity. Shape: T x X x Y."""
+        """Real-space streamfunction derived from vorticity. Shape: T x Y x X."""
         return torch.fft.ifft2(self._psi_hat_per_snapshot(), dim=(-2, -1)).real
 
     def velocity_per_snapshot(self) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Velocity field (u, v) derived from vorticity via the streamfunction
         (Delta psi = -zeta, u = d(psi)/dy, v = -d(psi)/dx), computed spectrally.
-        Each of shape T x X x Y.
+        Each of shape T x Y x X.
         """
         psi_hat = self._psi_hat_per_snapshot()
+        Kx, Ky = self._wavenumber_grids()
 
-        u_hat = 1j * self.ky * psi_hat
-        v_hat = -1j * self.kx * psi_hat
+        u_hat = 1j * Ky * psi_hat
+        v_hat = -1j * Kx * psi_hat
 
         u = torch.fft.ifft2(u_hat, dim=(-2, -1)).real
         v = torch.fft.ifft2(v_hat, dim=(-2, -1)).real
