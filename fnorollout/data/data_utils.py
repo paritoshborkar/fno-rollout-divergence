@@ -3,15 +3,15 @@ from omegaconf import DictConfig
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
 
 from fnorollout.constants import DataSourceType
-from fnorollout.data.datasets import TrajectoryDataset
+from fnorollout.data.datasets import NeuralopsTrajectoryDataset
 
 
-def load_dataset_from_file(data_source: DictConfig, rollout_steps: int) -> Dataset:
+def load_dataset_from_path(data_source: DictConfig, rollout_steps: int) -> Dataset:
     """
     Loads a dataset from a local file
     """
     absolute_path = to_absolute_path(data_source.path)
-    return TrajectoryDataset(
+    return NeuralopsTrajectoryDataset(
         path=absolute_path,
         channel_names=list(data_source.channels),
         rollout_steps=rollout_steps,
@@ -23,7 +23,7 @@ def load_dataset_from_source(data_source: DictConfig, rollout_steps: int) -> Dat
     Loads a single data source's dataset according to its source type
     """
     if data_source.type == DataSourceType.LOCAL:
-        return load_dataset_from_file(
+        return load_dataset_from_path(
             data_source=data_source, rollout_steps=rollout_steps
         )
 
@@ -43,24 +43,78 @@ def load_dataset(sources: DictConfig, rollout_steps: int) -> Dataset:
     return ConcatDataset(datasets)
 
 
+def split_dataset_indices(
+    dataset: NeuralopsTrajectoryDataset, train_split: float, val_split: float
+) -> tuple[list[int], list[int]]:
+    """
+    Splits a single source's flat (trajectory, timestep) items into train/val indices.
+
+    When the dataset holds more than one trajectory, splits by whole trajectory so
+    no trajectory straddles both splits. Falls back to a time-based split within the
+    single trajectory when there's only one (e.g. a single-file data source).
+    """
+    num_trajectories = len(dataset.trajectories)
+
+    if num_trajectories > 1:
+        # round (not truncate) so e.g. 3 trajectories * 0.8 -> 2 rather than dropping
+        # to a too-small train split, and always reserve at least one trajectory for
+        # train even if train_split rounds down to 0 trajectories
+        train_traj_count = max(
+            1, min(round(num_trajectories * train_split), num_trajectories)
+        )
+        val_traj_count = min(
+            round(num_trajectories * val_split), num_trajectories - train_traj_count
+        )
+        train_trajs = range(train_traj_count)
+        val_trajs = range(train_traj_count, train_traj_count + val_traj_count)
+
+        train_indices = [
+            i
+            for i, (traj_index, _) in enumerate(dataset.indices)
+            if traj_index in train_trajs
+        ]
+        val_indices = [
+            i
+            for i, (traj_index, _) in enumerate(dataset.indices)
+            if traj_index in val_trajs
+        ]
+    else:
+        train_index = max(1, min(round(len(dataset) * train_split), len(dataset)))
+        val_count = min(round(len(dataset) * val_split), len(dataset) - train_index)
+        train_indices = list(range(train_index))
+        val_indices = list(range(train_index, train_index + val_count))
+
+    return train_indices, val_indices
+
+
 def create_dataloaders(data_config: DictConfig, train_config: DictConfig):
     """
-    Creates train and validation dataloaders
+    Creates train and validation dataloaders, splitting each data source independently
+    (see split_dataset_indices) before concatenating sources back together, so a
+    trajectory from one source is never split across both a multi-source train and
+    val set.
     """
-    dataset = load_dataset(data_config.sources, data_config.trajectory.rollout_steps)
-
     train_split = data_config.split.train
     val_split = data_config.split.val
 
-    train_index = int(len(dataset) * train_split)
-    val_index = train_index + int(len(dataset) * val_split)
+    train_datasets = []
+    val_datasets = []
+    for data_source in data_config.sources.values():
+        dataset = load_dataset_from_source(
+            data_source, data_config.trajectory.rollout_steps
+        )
+        train_indices, val_indices = split_dataset_indices(
+            dataset, train_split, val_split
+        )
+        train_datasets.append(Subset(dataset, train_indices))
+        val_datasets.append(Subset(dataset, val_indices))
 
     train_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index)),
+        dataset=ConcatDataset(train_datasets),
         batch_size=train_config.dataloader.train.batch_size,
     )
     val_loader = DataLoader(
-        dataset=Subset(dataset, range(train_index, val_index)),
+        dataset=ConcatDataset(val_datasets),
         batch_size=train_config.dataloader.val.batch_size,
     )
 
