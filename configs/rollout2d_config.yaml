@@ -1,0 +1,17 @@
+defaults:
+  - data_sources: qg_beta_turbulence_test
+  - _self_
+
+rollout_steps: 100
+start_index: 0
+
+artifacts:
+  path: ???
+  train_config: config.yaml
+  data_processor: data_processor.pt
+  model: model_state_dict.pt
+  optimizer: optimizer.pt
+  scheduler: scheduler.pt
+
+output_path: rollout_prediction.nc
+device: cpu

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from pydantic import BaseModel
 
 from fnorollout.constants import DataSourceType
@@ -9,3 +11,7 @@ class DataSource(BaseModel):
     name: str
     type: DataSourceType
     channels: list[str]
+
+
+class LocalDataSource(DataSource):
+    path: Path

@@ -1,0 +1,4 @@
+name: qg_beta_turbulence_test
+type: local
+path: data/raw/qgbeta_seed_only/qg_beta_turbulence/test/seed1683772998.nc
+channels: [zeta]
