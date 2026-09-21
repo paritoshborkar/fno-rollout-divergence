@@ -2,5 +2,5 @@
 
 name: qg_beta_turbulence
 type: local
-path: data/raw/qgbeta_seed_only
+path: data/raw/qgbeta_seed_only/qg_beta_turbulence/seed
 channels: [zeta]
