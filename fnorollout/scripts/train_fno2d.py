@@ -3,8 +3,8 @@ Hydra's own run dir (see hydra.run.dir in configs/config.yaml) holds per-run log
 and is where training artifacts (see `training.artifacts.path`) should be written.
 
 Usage:
-    uv run python -m fnorollout.scripts.train
-    uv run python -m fnorollout.scripts.train +experiment=baseline
+    uv run python -m fnorollout.scripts.train_fno2d
+    uv run python -m fnorollout.scripts.train_fno2d +experiment=baseline
 """
 
 from pathlib import Path
