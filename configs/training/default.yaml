@@ -16,7 +16,6 @@ scheduler:
   _target_: torch.optim.lr_scheduler.CosineAnnealingLR
   T_max: ${training.epochs}
 
-checkpoints:
-  path: checkpoints
-  save_every: 100
-  keep_best: true # if lowest validation score epoch should be saved as well
+artifacts:
+  path: artifacts
+  save_every: 20 # regular training-state checkpoint interval, in epochs
