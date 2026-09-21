@@ -1,6 +1,6 @@
 """Training entrypoint. Hydra composes configs/config.yaml; wandb tracks the run;
 Hydra's own run dir (see hydra.run.dir in configs/config.yaml) holds per-run logs
-and is where training artifacts (checkpoints) should be written.
+and is where training artifacts (see `training.artifacts.path`) should be written.
 
 Usage:
     uv run python -m fnorollout.scripts.train
@@ -11,19 +11,19 @@ from pathlib import Path
 
 import hydra
 import torch
+import wandb
 from hydra.utils import instantiate
 from neuralop.models import FNO
 from neuralop.training import Trainer
 from omegaconf import DictConfig, OmegaConf
 
-import wandb
 from fnorollout.data.data_utils import (
     create_dataloaders,
     create_neuralop_test_dataloaders,
 )
 from fnorollout.data.preprocessing import build_data_processor, save_data_processor
 from fnorollout.schemas.configs import Config
-from fnorollout.scripts.util import set_seeds
+from fnorollout.utils import set_seeds
 
 
 def load_optimizer(train_config: DictConfig, model):
@@ -44,18 +44,20 @@ def init_wandb(config: DictConfig) -> None:
     )
 
 
-def save_training_artifacts(train_config: DictConfig, data_processor) -> None:
+def save_pre_run_artifacts(
+    config: DictConfig, artifacts_dir: Path, data_processor
+) -> None:
     """
-    Save the fitted data preprocessor's normalizer stats next to the trainer's model
-    checkpoint (weights + architecture metadata, already written by Trainer.train) and
-    log the directory to wandb, so a checkpoint alone has what's needed to reload the
-    model and preprocess a different test set the same way training data was.
+    Saves the composed Hydra config and data processor to the run's artifacts diectory
     """
-    checkpoints_dir = Path(train_config.checkpoints.path)
-    save_data_processor(data_processor, checkpoints_dir)
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    OmegaConf.save(config, artifacts_dir / "config.yaml")
+    save_data_processor(data_processor, artifacts_dir)
 
-    artifact = wandb.Artifact(name=f"fno-checkpoint-{wandb.run.id}", type="model")
-    artifact.add_dir(str(checkpoints_dir))
+
+def log_artifacts_to_wandb(artifacts_dir: Path) -> None:
+    artifact = wandb.Artifact(name=f"fno-artifacts-{wandb.run.id}", type="model")
+    artifact.add_dir(str(artifacts_dir))
     wandb.log_artifact(artifact)
 
 
@@ -71,12 +73,6 @@ def train_loop(
     training_loss = instantiate(next(iter(loss_config.training_loss.values())))
     eval_losses = instantiate(loss_config.eval_losses)
 
-    save_best = None
-    if train_config.checkpoints.keep_best:
-        loader_name = next(iter(test_dataloaders))
-        loss_name = next(iter(eval_losses))
-        save_best = f"{loader_name}_{loss_name}"
-
     return trainer.train(
         train_loader=train_dataloader,
         test_loaders=test_dataloaders,
@@ -84,9 +80,8 @@ def train_loop(
         scheduler=scheduler,
         training_loss=training_loss,
         eval_losses=eval_losses,
-        save_every=train_config.checkpoints.save_every,
-        save_best=save_best,
-        save_dir=train_config.checkpoints.path,
+        save_every=train_config.artifacts.save_every,
+        save_dir=train_config.artifacts.path,
     )
 
 
@@ -131,6 +126,11 @@ def main(config: DictConfig) -> None:
         train_dataloader.dataset, preprocessing_config=data_config.preprocessing
     )
 
+    artifacts_dir = Path(train_config.artifacts.path)
+    save_pre_run_artifacts(
+        config=config, artifacts_dir=artifacts_dir, data_processor=data_processor
+    )
+
     print("Creating trainer")
     trainer = Trainer(
         model=model,
@@ -152,8 +152,11 @@ def main(config: DictConfig) -> None:
         scheduler=scheduler,
     )
 
-    print("Saving model checkpoint and preprocessor artifacts")
-    save_training_artifacts(train_config=train_config, data_processor=data_processor)
+    print("Saving artifacts post training")
+    trainer.checkpoint(artifacts_dir)
+
+    print("Logging training artifacts to wandb")
+    log_artifacts_to_wandb(artifacts_dir)
 
     wandb.finish()
 
