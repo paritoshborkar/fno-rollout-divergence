@@ -1,7 +1,8 @@
 # Create class that provides statistics about vorticity trajectory (simulated or predicted)
 
-
+import numpy as np
 import torch
+from scipy.stats import wasserstein_distance
 
 
 class TrajectoryStatistics:
@@ -164,7 +165,9 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         diff = (self.trajectory - baseline_trajectory).flatten(-2)
         base = baseline_trajectory.flatten(-2)
 
-        return torch.linalg.norm(diff, dim=-1) / torch.linalg.norm(base, dim=-1)  # Default L2 norm
+        return torch.linalg.norm(diff, dim=-1) / torch.linalg.norm(
+            base, dim=-1
+        )  # Default L2 norm
 
     def relative_l2(self, baseline_trajectory: torch.Tensor) -> torch.Tensor:
         """
@@ -193,3 +196,25 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         """
         drift = self.energy_drift_per_snapshot(baseline_trajectory)
         return torch.sqrt((drift**2).mean())
+
+    def vorticity_rms(self) -> float:
+        """
+        Calculates RMS of the vorticity over the entire trajectory
+        """
+        return torch.sqrt(torch.mean(self.trajectory**2)).item()
+
+    def wasserstein_1d(
+        self,
+        baseline_trajectory: torch.Tensor,
+        pred_window: tuple[int, int | None] = (0, None),
+        baseline_window: tuple[int, int | None] = (0, None),
+    ) -> np.float64:
+        """
+        Returns the Wasserstein distance between this trajectory and a baseline trajectory
+        """
+        pred_flattened = self.trajectory[pred_window[0] : pred_window[1], ...].ravel()
+        baseline_flattened = baseline_trajectory[
+            baseline_window[0] : baseline_window[1], ...
+        ].ravel()
+
+        return wasserstein_distance(pred_flattened, baseline_flattened)
