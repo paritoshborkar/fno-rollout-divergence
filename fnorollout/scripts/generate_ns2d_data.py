@@ -191,7 +191,7 @@ def run_sweep(
     config_path = JULIA_DATAGEN_DIR / "configs" / config
 
     # Namespaced by script so two scripts sharing an --output-dir never combine outputs
-    run_dir = DATA_RAW_DIR / output_dir / Path(script).stem
+    run_dir = DATA_RAW_DIR / Path(script).stem / output_dir
     run_dir.mkdir(parents=True, exist_ok=True)
 
     samples = (
