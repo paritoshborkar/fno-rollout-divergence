@@ -21,6 +21,7 @@ data/processed/*
 *.jld2
 *.png
 
+*.env
 
 .DS_Store
 .vscode/
