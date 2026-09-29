@@ -146,6 +146,6 @@ Script-agnostic — works with either `.jl`/`.toml` pair. `--sweep VARIABLE=VALU
 
 Rather than spawning one `julia` subprocess per sample — which used to pay Julia/CUDA's JIT compilation cost (often ~1 minute) on *every* sample — it builds the sample list, writes it as `sweep_plan.toml` inside the output directory, and invokes `scripts/run_sweep.jl` **once**. That script `include()`s the target `.jl` file (defining but not auto-running it, per the guard above) and calls `run_simulation()` in a loop, so package loading and CUDA kernel JIT compilation happen once for the whole sweep rather than once per sample. `sweep_plan.toml` is left behind afterward as a record of exactly which config overrides produced each output file.
 
-Output lands at `data/raw/<output-dir>/<script_stem>/<sweep_variable_or_"seed">/<value>_seed<N>.nc` — namespaced by script name so two different scripts sharing an `--output-dir` never commingle output.
+Output lands at `data/raw/<script_stem>/<output-dir>/<sweep_variable_or_"seed">/<value>_seed<N>.nc` — namespaced by script name so two different scripts sharing an `--output-dir` never commingle output.
 
 **GPU note**: at the grid resolutions these configs currently default to (128–256), GPU and CPU take roughly the same wall-clock time — per-CUDA-kernel-launch overhead dominates over actual FFT/RK4 compute at this scale (confirmed empirically on `qg_beta_turbulence.jl` at n=128), so a GPU run not beating CPU isn't a sign anything's broken. The crossover where GPU parallelism actually wins tends to be much larger grids (512+).
