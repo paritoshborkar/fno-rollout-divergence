@@ -11,12 +11,12 @@ from pathlib import Path
 
 import hydra
 import torch
-import wandb
 from hydra.utils import instantiate
 from neuralop.models import FNO
 from neuralop.training import Trainer
 from omegaconf import DictConfig, OmegaConf
 
+import wandb
 from fnorollout.data.data_utils import (
     create_dataloaders,
     create_neuralop_test_dataloaders,
@@ -37,6 +37,7 @@ def load_scheduler(train_config: DictConfig, optimizer):
 def init_wandb(config: DictConfig) -> None:
     wandb.init(
         project=config.wandb.project,
+        name=config.wandb.get("name"),
         entity=config.wandb.entity,
         mode=config.wandb.mode,
         tags=list(config.wandb.tags),
