@@ -87,55 +87,78 @@ def split_dataset_indices(
     return train_indices, val_indices
 
 
-def create_dataloaders(data_config: DictConfig, train_config: DictConfig):
-    """
-    Creates train and validation dataloaders, splitting each data source independently
-    (see split_dataset_indices) before concatenating sources back together, so a
-    trajectory from one source is never split across both a multi-source train and
-    val set.
-    """
-    train_split = data_config.split.train
-    val_split = data_config.split.val
-
-    train_datasets = []
-    val_datasets = []
-    for data_source in data_config.sources.values():
-        dataset = load_dataset_from_source(
-            data_source, data_config.trajectory.rollout_steps
-        )
-        train_indices, val_indices = split_dataset_indices(
-            dataset, train_split, val_split
-        )
-        train_datasets.append(Subset(dataset, train_indices))
-        val_datasets.append(Subset(dataset, val_indices))
-
-    train_loader = DataLoader(
-        dataset=ConcatDataset(train_datasets),
-        batch_size=train_config.dataloader.train.batch_size,
-    )
-    val_loader = DataLoader(
-        dataset=ConcatDataset(val_datasets),
-        batch_size=train_config.dataloader.val.batch_size,
-    )
-
-    return train_loader, val_loader
-
-
-def create_neuralop_test_dataloaders(
+def create_neuralop_dataloaders(
     data_config: DictConfig, train_config: DictConfig
-) -> dict:
+) -> tuple[DataLoader, dict[str, DataLoader]]:
     """
-    Creates test dataloaders keyed by resolution, matching the shape neuralop's Trainer
-    expects for its `test_loaders` argument during training
+    Creates train and validation dataloaders, as required by neuralop's Trainer
+
+    val_loaders is keyed by grid resolution (shape[-1] of a sample's "x"), matching
+    the shape neuralop's Trainer expects for its `test_loaders` argument so it can
+    report per-resolution eval metrics.
     """
-    test_dataset = load_dataset(
-        data_config.test_sources, data_config.trajectory.rollout_steps
-    )
 
-    test_loader = DataLoader(
-        dataset=test_dataset,
-        batch_size=train_config.dataloader.test.batch_size,
-    )
+    if data_config.get("test_sources"):
+        train_datasets: list[Dataset] = [
+            load_dataset_from_source(
+                data_source=data_source,
+                rollout_steps=data_config.trajectory.rollout_steps,
+            )
+            for data_source in data_config.sources.values()
+        ]
 
-    test_resolution = test_dataset[0]["x"].shape[-1]
-    return {test_resolution: test_loader}
+        val_datasets: list[Dataset] = [
+            load_dataset_from_source(
+                data_source=data_source,
+                rollout_steps=data_config.trajectory.rollout_steps,
+            )
+            for data_source in data_config.test_sources.values()
+        ]
+        val_resolutions = [dataset[0]["x"].shape[-1] for dataset in val_datasets]
+
+        train_loader = DataLoader(
+            dataset=ConcatDataset(train_datasets),
+            batch_size=train_config.dataloader.train.batch_size,
+        )
+        val_loaders = {
+            val_resolutions[index]: DataLoader(
+                dataset=val_dataset, batch_size=train_config.dataloader.val.batch_size
+            )
+            for index, val_dataset in enumerate(val_datasets)
+        }
+
+    else:
+        train_split = data_config.split.train
+        val_split = data_config.split.val
+
+        train_datasets: list[Dataset] = []
+        val_datasets: list[tuple[int, Dataset]] = []
+        for data_source in data_config.sources.values():
+            dataset = load_dataset_from_source(
+                data_source, data_config.trajectory.rollout_steps
+            )
+            train_indices, val_indices = split_dataset_indices(
+                dataset, train_split, val_split
+            )
+            train_datasets.append(Subset(dataset, train_indices))
+
+            val_resolution = dataset[0]["x"].shape[-1]
+            val_datasets.append((val_resolution, Subset(dataset, val_indices)))
+
+        train_loader = DataLoader(
+            dataset=ConcatDataset(train_datasets),
+            batch_size=train_config.dataloader.train.batch_size,
+        )
+        val_loaders = (
+            {
+                resolution: DataLoader(
+                    dataset=val_dataset,
+                    batch_size=train_config.dataloader.val.batch_size,
+                )
+                for resolution, val_dataset in val_datasets
+            }
+            if val_split > 0.0
+            else {}
+        )
+
+    return train_loader, val_loaders
