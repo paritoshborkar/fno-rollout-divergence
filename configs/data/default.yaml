@@ -1,6 +1,5 @@
 defaults:
   - /data_sources@sources.torus2d_example: torus2d_example
-  - /data_sources@test_sources.torus2d_example: torus2d_example
   - _self_
 
 trajectory:

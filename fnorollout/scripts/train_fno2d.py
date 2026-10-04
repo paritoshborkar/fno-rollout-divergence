@@ -18,8 +18,7 @@ from omegaconf import DictConfig, OmegaConf
 
 import wandb
 from fnorollout.data.data_utils import (
-    create_dataloaders,
-    create_neuralop_test_dataloaders,
+    create_neuralop_dataloaders,
 )
 from fnorollout.data.preprocessing import build_data_processor, save_data_processor
 from fnorollout.schemas.configs import Config
@@ -67,7 +66,7 @@ def train_loop(
     train_config: DictConfig,
     loss_config: DictConfig,
     train_dataloader,
-    test_dataloaders,
+    val_dataloaders,
     optimizer,
     scheduler,
 ):
@@ -76,7 +75,7 @@ def train_loop(
 
     return trainer.train(
         train_loader=train_dataloader,
-        test_loaders=test_dataloaders,
+        test_loaders=val_dataloaders,
         optimizer=optimizer,
         scheduler=scheduler,
         training_loss=training_loss,
@@ -104,10 +103,7 @@ def main(config: DictConfig) -> None:
     train_config = config.training
     loss_config = config.loss
 
-    train_dataloader, val_dataloader = create_dataloaders(
-        data_config=data_config, train_config=train_config
-    )
-    test_dataloaders = create_neuralop_test_dataloaders(
+    train_dataloader, val_dataloader = create_neuralop_dataloaders(
         data_config=data_config, train_config=train_config
     )
 
@@ -148,7 +144,7 @@ def main(config: DictConfig) -> None:
         train_config=train_config,
         loss_config=loss_config,
         train_dataloader=train_dataloader,
-        test_dataloaders=test_dataloaders,
+        val_dataloaders=val_dataloader,
         optimizer=optimizer,
         scheduler=scheduler,
     )
