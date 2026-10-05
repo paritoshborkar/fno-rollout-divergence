@@ -1,4 +1,4 @@
-# Simulation parameters for scripts/qg_beta_turbulence.jl
+# Simulation parameters for scripts/qg_beta_forced.jl
 # From GeophysicalFlows SingleLayer QG Beta-plane turbulence example:
 # https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable/literated/singlelayerqg_betaforced/
 

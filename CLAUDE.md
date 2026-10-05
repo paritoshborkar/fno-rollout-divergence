@@ -71,8 +71,8 @@ fnorollout/                      # Python package (flat layout, no src/), import
                                    #   the uv-managed Python environment
     configs/*.toml                   #   per-script simulation parameters, parsed with Julia's stdlib TOML (not
                                       #   Hydra) — see Data Generation below for the CLI override syntax
-    scripts/qg_beta_turbulence.jl     #   SingleLayerQG beta-plane turbulence, writes a NetCDF via
-                                       #   configs/qg_beta_turbulence.toml's [output] filename
+    scripts/qg_beta_forced.jl         #   SingleLayerQG beta-plane forced turbulence, writes a NetCDF via
+                                       #   configs/qg_beta_forced.toml's [output] filename
     scripts/ns2d_torus_vorticity.jl   #   TwoDNavierStokes on a torus, writes a NetCDF via
                                        #   configs/ns2d_torus_vorticity.toml's [output] filename
     scripts/run_sweep.jl              #   generic driver: given a plan.toml (written by generate_ns2d_data.py),
@@ -110,7 +110,7 @@ Hydra's `hydra.run.dir` (`outputs/<date>/<time>/`, gitignored) is the per-run wo
 
 ## Data Generation (GeophysicalFlows.jl)
 
-Trajectory datasets are generated separately via Julia, not part of the `uv` environment. Both `scripts/qg_beta_turbulence.jl` (SingleLayerQG beta-plane turbulence) and `scripts/ns2d_torus_vorticity.jl` (TwoDNavierStokes on a torus) are implemented and produce NetCDF files.
+Trajectory datasets are generated separately via Julia, not part of the `uv` environment. Both `scripts/qg_beta_forced.jl` (SingleLayerQG beta-plane forced turbulence) and `scripts/ns2d_torus_vorticity.jl` (TwoDNavierStokes on a torus) are implemented and produce NetCDF files.
 
 Each script is structured as a `run_simulation(config, output_path)` function (the actual physics + NetCDF write) plus a `main()` (CLI arg/config-loading, calls `run_simulation` once) plus a trailing `if abspath(PROGRAM_FILE) == @__FILE__; main(); end` guard. This is what lets `scripts/run_sweep.jl` (below) `include()` a script and reuse `run_simulation()` directly without also triggering its standalone-CLI `main()`.
 
@@ -118,14 +118,14 @@ Each script is structured as a `run_simulation(config, output_path)` function (t
 
 ```bash
 cd fnorollout/julia/datagen
-julia --project=. scripts/qg_beta_turbulence.jl
+julia --project=. scripts/qg_beta_forced.jl
 ```
 
-`qg_beta_turbulence.jl` reads simulation parameters from a TOML file (default `configs/qg_beta_turbulence.toml`; Julia's stdlib `TOML`, unrelated to Hydra) instead of hardcoding them. Any CLI arg containing `=` is a dotted-key override applied on top of that file (mirroring Hydra's `key=value` overrides); a lone arg without `=` overrides which config file is loaded:
+`qg_beta_forced.jl` reads simulation parameters from a TOML file (default `configs/qg_beta_forced.toml`; Julia's stdlib `TOML`, unrelated to Hydra) instead of hardcoding them. Any CLI arg containing `=` is a dotted-key override applied on top of that file (mirroring Hydra's `key=value` overrides); a lone arg without `=` overrides which config file is loaded:
 
 ```bash
-julia --project=. scripts/qg_beta_turbulence.jl numerics.nsteps=500 physics.beta=5.0
-julia --project=. scripts/qg_beta_turbulence.jl configs/other_run.toml numerics.stepper=RK4
+julia --project=. scripts/qg_beta_forced.jl numerics.nsteps=500 physics.beta=5.0
+julia --project=. scripts/qg_beta_forced.jl configs/other_run.toml numerics.stepper=RK4
 ```
 
 Both scripts write their NetCDF with Julia dims `(x, y, t)` and a `t` coordinate — xarray/netCDF4 reads that reversed (Julia column-major vs. Python row-major) as `(t, y, x)`, i.e. already `(Time, Y, X)` with Y as rows and X as columns. `fnorollout/data/datasets.py`'s `TrajectoryDataset` relies on this and does no axis permutation — it just converts `.values` straight to a tensor. Any new datagen script must follow the same `(x, y, t)` Julia dim order (verify with an asymmetric test field if unsure — square grids can't reveal an axis swap) or `TrajectoryDataset` will silently read it with axes scrambled rather than erroring. (The pre-existing `torus2d_trajectory.nc` used an older `(y, x, time)` convention and needs regenerating with the current `ns2d_torus_vorticity.jl` before use.)
@@ -148,4 +148,4 @@ Rather than spawning one `julia` subprocess per sample — which used to pay Jul
 
 Output lands at `data/raw/<script_stem>/<output-dir>/<sweep_variable_or_"seed">/<value>_seed<N>.nc` — namespaced by script name so two different scripts sharing an `--output-dir` never commingle output.
 
-**GPU note**: at the grid resolutions these configs currently default to (128–256), GPU and CPU take roughly the same wall-clock time — per-CUDA-kernel-launch overhead dominates over actual FFT/RK4 compute at this scale (confirmed empirically on `qg_beta_turbulence.jl` at n=128), so a GPU run not beating CPU isn't a sign anything's broken. The crossover where GPU parallelism actually wins tends to be much larger grids (512+).
+**GPU note**: at the grid resolutions these configs currently default to (128–256), GPU and CPU take roughly the same wall-clock time — per-CUDA-kernel-launch overhead dominates over actual FFT/RK4 compute at this scale (confirmed empirically on `qg_beta_forced.jl` at n=128), so a GPU run not beating CPU isn't a sign anything's broken. The crossover where GPU parallelism actually wins tends to be much larger grids (512+).
