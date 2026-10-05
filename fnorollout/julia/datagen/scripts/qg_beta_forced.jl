@@ -1,4 +1,4 @@
-# From GeophysicalFlows SingleLayer QG Beta-plane turbulence example: https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable/literated/singlelayerqg_betaforced/
+# From GeophysicalFlows SingleLayer QG Beta-plane forced turbulence example: https://fourierflows.github.io/GeophysicalFlowsDocumentation/stable/literated/singlelayerqg_betaforced/
 
 using GeophysicalFlows, CUDA, Random, Printf, JLD2, Statistics, NCDatasets, FFTW, TOML
 
@@ -205,7 +205,7 @@ function run_simulation(config::Dict, output_path::String)
 end
 
 function main()
-    config_path = joinpath(@__DIR__, "..", "configs", "qg_beta_turbulence.toml")
+    config_path = joinpath(@__DIR__, "..", "configs", "qg_beta_forced.toml")
     overrides = String[]
     for arg in ARGS
         if occursin('=', arg)

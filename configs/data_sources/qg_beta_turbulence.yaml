@@ -1,6 +1,6 @@
 # Config to load vorticity data defined on a 2D torus with oscillating external forcing 
 
-name: qg_beta_turbulence
+name: qg_beta_forced
 type: local
-path: data/raw/qgbeta_seed_only/qg_beta_turbulence/seed
+path: data/raw/qg_beta_forced/qgbeta_seed_only/seed
 channels: [zeta]
