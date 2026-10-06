@@ -4,7 +4,7 @@ and is where training artifacts (see `training.artifacts.path`) should be writte
 
 Usage:
     uv run python -m fnorollout.scripts.train_fno2d
-    uv run python -m fnorollout.scripts.train_fno2d +experiment=baseline
+    uv run python -m fnorollout.scripts.train_fno2d +training_experiments=default
 """
 
 from pathlib import Path
@@ -87,11 +87,13 @@ def train_loop(
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def main(config: DictConfig) -> None:
+    # Set device
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {DEVICE}")
 
+    # Load and validate configs
     raw_config = OmegaConf.to_container(config)
-    _ = Config(**raw_config)  # Validates main config with pydatic
+    _ = Config(**raw_config)  # Validates main config with pydantic
 
     print("Loaded data, model and training configs")
 
@@ -103,6 +105,7 @@ def main(config: DictConfig) -> None:
     train_config = config.training
     loss_config = config.loss
 
+    # Create data loaders for training and validation
     train_dataloader, val_dataloader = create_neuralop_dataloaders(
         data_config=data_config, train_config=train_config
     )
