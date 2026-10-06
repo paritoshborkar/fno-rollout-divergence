@@ -1,3 +1,12 @@
+"""
+Perform rollout on a trained FNO2D model. Hydra composes configs/rollout_config.yaml
+Loads a previous training run and saves the predicted rollout as an experiment outcome
+
+Usage:
+    uv run python -m fnorollout.scripts.rollout_fno2d artifacts.path=<train_artifacts_path> output_path=<predicted rollout path>
+    uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_1
+"""
+
 from pathlib import Path
 
 import hydra

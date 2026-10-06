@@ -1,0 +1,26 @@
+# @package _global_
+# Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_1
+defaults:
+  - override /data_sources@data.sources.torus2d_example: null # Remove default data source
+
+
+data:
+  split:
+    train: 1.0
+    val: 0.0
+  sources:
+    qg_beta_forced: 
+      name: qg_beta_forced
+      type: local
+      path: data/raw/qg_forced_beta10.nc
+      channels: [zeta]
+
+hydra:
+  run:
+    dir: outputs/training_experiment_1
+  job:
+    chdir: true
+
+wandb:
+  name: training_experiment_1
+  tags: ["single_trajectory", "forced_beta_turbulence", "no_viscosity"]

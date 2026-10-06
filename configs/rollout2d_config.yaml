@@ -2,7 +2,7 @@ defaults:
   - data_sources: qg_beta_turbulence_test
   - _self_
 
-rollout_steps: 100
+rollout_steps: 800
 start_index: 0
 
 artifacts:
@@ -13,5 +13,5 @@ artifacts:
   optimizer: optimizer.pt
   scheduler: scheduler.pt
 
-output_path: rollout_prediction.nc
+output_path: ???
 device: cpu
