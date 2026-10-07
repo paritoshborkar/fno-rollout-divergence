@@ -1,21 +1,10 @@
 # @package _global_
-# Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_1
-id: 1
+# Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_2
+id: 2
 
 defaults:
+  - /data_sources@data.sources.qg_beta_forced: qg_beta_forced
   - override /data_sources@data.sources.torus2d_example: null # Remove default data source
-
-
-data:
-  split:
-    train: 1.0
-    val: 0.0
-  sources:
-    qg_beta_forced: 
-      name: qg_beta_forced
-      type: local
-      path: data/raw/qg_forced_beta10.nc
-      channels: [zeta]
 
 hydra:
   run:
