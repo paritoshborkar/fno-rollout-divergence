@@ -22,7 +22,9 @@ from fnorollout.data.data_utils import (
 )
 from fnorollout.data.preprocessing import build_data_processor, save_data_processor
 from fnorollout.schemas.configs import Config
-from fnorollout.utils import set_seeds
+from fnorollout.utils import register_utcnow_resolver, set_seeds
+
+register_utcnow_resolver()
 
 
 def load_optimizer(train_config: DictConfig, model):

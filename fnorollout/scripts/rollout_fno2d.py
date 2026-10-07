@@ -19,6 +19,9 @@ from omegaconf import DictConfig, OmegaConf
 
 from fnorollout.schemas.data_source import LocalDataSource
 from fnorollout.schemas.rollout_config import Rollout2DConfig
+from fnorollout.utils import register_utcnow_resolver
+
+register_utcnow_resolver()
 
 
 def load_train_run_config(artifacts: DictConfig) -> DictConfig:
