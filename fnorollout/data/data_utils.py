@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 from hydra.utils import to_absolute_path
 from omegaconf import DictConfig
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset
@@ -10,9 +13,28 @@ def load_dataset_from_path(data_source: DictConfig, rollout_steps: int) -> Datas
     """
     Loads a dataset from a local file
     """
-    absolute_path = to_absolute_path(data_source.path)
+    absolute_path = Path(to_absolute_path(data_source.path))
+
+    file_paths = (
+        [filename for filename in absolute_path.rglob("*.nc")]
+        if absolute_path.is_dir()
+        else [absolute_path]
+    )
+
+    if data_source.get("filter"):
+        file_paths = [
+            filtered_file
+            for filtered_file in file_paths
+            if re.search(data_source.filter, filtered_file.name)
+        ]
+
+    if not file_paths:
+        raise IndexError(
+            f"No valid data files present in data source {data_source.name}. Check source and filters"
+        )
+
     return NeuralopsTrajectoryDataset(
-        path=absolute_path,
+        file_paths=file_paths,
         channel_names=list(data_source.channels),
         rollout_steps=rollout_steps,
     )

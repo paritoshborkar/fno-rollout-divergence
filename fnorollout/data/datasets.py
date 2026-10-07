@@ -15,7 +15,7 @@ class NeuralopsTrajectoryDataset(Dataset):
 
     def __init__(
         self,
-        path: str,
+        file_paths: list[Path],
         channel_names: list[str],
         rollout_steps: int = 1,
         channel_dim=1,
@@ -29,7 +29,7 @@ class NeuralopsTrajectoryDataset(Dataset):
         super().__init__()
         # Julia datagen scripts write NetCDF with dim order (x, y, t);
         # xarray/netCDF4 reads that reversed as (t, y, x)
-        self.path = Path(path).absolute()
+        self.file_paths = file_paths
         self.channel_names = channel_names
         self.channel_dim = channel_dim
         self.rollout_steps = rollout_steps
@@ -63,15 +63,9 @@ class NeuralopsTrajectoryDataset(Dataset):
         }
 
     def _load_trajectories(self) -> list[torch.Tensor]:
-        # Recursively get all NetCDF files
-        file_paths = (
-            [filename for filename in self.path.rglob("*.nc")]
-            if self.path.is_dir()
-            else [self.path]
-        )
-
         trajectories = []
-        for file_path in file_paths:
+
+        for file_path in self.file_paths:
             dataset_nc = xr.open_dataset(file_path)
 
             # Read channel data from xarray data
