@@ -15,3 +15,9 @@ artifacts:
 
 output_path: ???
 device: cpu
+
+hydra:
+  run:
+    dir: outputs/${utcnow:%Y-%m-%d}/${utcnow:%H-%M-%S}
+  job:
+    chdir: true

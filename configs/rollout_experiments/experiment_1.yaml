@@ -1,11 +1,17 @@
 # @package _global_
-# Usage: uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_1 training_experiment_id=1
+# Usage: uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_1 training_experiment_id=1.0
 
-id: 1
-training_experiment_id: ??? # must match the training run's own hydra.run.dir id
+id: 1.0
+training_experiment_id: ??? # must match the training run's own id (float, e.g. 1.0)
 start_index: 100 # Starts after statistical stabilization
 
 artifacts:
   path: outputs/training_experiment_${training_experiment_id}/artifacts
 
-output_path: outputs/experiments/${training_experiment_id}.${id}/rollout_prediction_${utcnow:%Y-%m-%d_%H-%M-%S}.nc
+output_path: outputs/experiments/${training_experiment_id}_${id}/rollout_prediction_${utcnow:%Y-%m-%d_%H-%M-%S}.nc
+
+hydra:
+  run:
+    dir: outputs/experiments/${training_experiment_id}_${id}/
+  job:
+    chdir: true

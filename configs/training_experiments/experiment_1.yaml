@@ -1,6 +1,6 @@
 # @package _global_
 # Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_1
-id: 1
+id: 1.0
 
 defaults:
   - override /data_sources@data.sources.torus2d_example: null # Remove default data source
