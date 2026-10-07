@@ -1,5 +1,5 @@
 defaults:
-  - data_sources: qg_beta_turbulence_test
+  - data_sources: qg_beta_forced_test
   - _self_
 
 rollout_steps: 800
