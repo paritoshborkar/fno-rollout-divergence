@@ -6,4 +6,4 @@ start_index: 100 # Starts after statistical stabilization
 artifacts:
   path: outputs/training_experiment_1/artifacts
 
-output_path: outputs/experiments/experiment_1.1/rollout_prediction_${now:%Y-%m-%d_%H-%M-%S}.nc
+output_path: outputs/experiments/experiment_1.1/rollout_prediction_${utcnow:%Y-%m-%d_%H-%M-%S}.nc
