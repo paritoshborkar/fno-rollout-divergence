@@ -9,9 +9,3 @@ artifacts:
   path: outputs/training_experiment_${training_experiment_id}/artifacts
 
 output_path: outputs/experiments/${training_experiment_id}_${id}/rollout_prediction_${utcnow:%Y-%m-%d_%H-%M-%S}.nc
-
-hydra:
-  run:
-    dir: outputs/experiments/${training_experiment_id}_${id}/
-  job:
-    chdir: true
