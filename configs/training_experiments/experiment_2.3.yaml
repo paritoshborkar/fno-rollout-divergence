@@ -1,0 +1,21 @@
+# @package _global_
+# Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_2.3
+id: 2.3
+
+defaults:
+  - /data_sources@data.sources.qg_beta_forced: qg_beta_forced
+  - override /data_sources@data.sources.torus2d_example: null # Remove default data source
+
+training:
+  epochs: 400
+
+
+hydra:
+  run:
+    dir: outputs/training_experiment_${id}
+  job:
+    chdir: true
+
+wandb:
+  name: training_experiment_${id}
+  tags: ["multi_trajectory", "single_beta", "forced_beta_turbulence", "no_viscosity", "seed_change_only"]

@@ -1,0 +1,14 @@
+# @package _global_
+# Usage: uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_3 training_experiment_id=3.0
+
+id: 3.0
+training_experiment_id: ??? # must match the training run's own id (float, e.g. 1.0)
+start_index: 100 # Starts after statistical stabilization
+
+defaults:
+  - override /data_sources@data_sources: qg_beta_sweep_test
+
+artifacts:
+  path: outputs/training_experiment_${training_experiment_id}/artifacts
+
+output_path: outputs/experiments/${training_experiment_id}_${id}/rollout_prediction_${utcnow:%Y-%m-%d_%H-%M-%S}.nc
