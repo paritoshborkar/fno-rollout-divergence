@@ -4,6 +4,7 @@ defaults:
 
 trajectory:
   rollout_steps: 1
+  n_input_snapshots: 1
 
 split:
   train: 0.8

@@ -9,7 +9,9 @@ from fnorollout.constants import DataSourceType
 from fnorollout.data.datasets import NeuralopsTrajectoryDataset
 
 
-def load_dataset_from_path(data_source: DictConfig, rollout_steps: int) -> Dataset:
+def load_dataset_from_path(
+    data_source: DictConfig, rollout_steps: int, n_input_snapshots: int
+) -> Dataset:
     """
     Loads a dataset from a local file
     """
@@ -37,16 +39,21 @@ def load_dataset_from_path(data_source: DictConfig, rollout_steps: int) -> Datas
         file_paths=file_paths,
         channel_names=list(data_source.channels),
         rollout_steps=rollout_steps,
+        n_input_snapshots=n_input_snapshots,
     )
 
 
-def load_dataset_from_source(data_source: DictConfig, rollout_steps: int) -> Dataset:
+def load_dataset_from_source(
+    data_source: DictConfig, rollout_steps: int, n_input_snapshots: int
+) -> Dataset:
     """
     Loads a single data source's dataset according to its source type
     """
     if data_source.type == DataSourceType.LOCAL:
         return load_dataset_from_path(
-            data_source=data_source, rollout_steps=rollout_steps
+            data_source=data_source,
+            rollout_steps=rollout_steps,
+            n_input_snapshots=n_input_snapshots,
         )
 
     raise NotImplementedError(
@@ -125,6 +132,7 @@ def create_neuralop_dataloaders(
             load_dataset_from_source(
                 data_source=data_source,
                 rollout_steps=data_config.trajectory.rollout_steps,
+                n_input_snapshots=data_config.trajectory.n_input_snapshots,
             )
             for data_source in data_config.sources.values()
         ]
@@ -133,6 +141,7 @@ def create_neuralop_dataloaders(
             load_dataset_from_source(
                 data_source=data_source,
                 rollout_steps=data_config.trajectory.rollout_steps,
+                n_input_snapshots=data_config.trajectory.n_input_snapshots,
             )
             for data_source in data_config.test_sources.values()
         ]
@@ -157,7 +166,9 @@ def create_neuralop_dataloaders(
         val_datasets: list[tuple[int, Dataset]] = []
         for data_source in data_config.sources.values():
             dataset = load_dataset_from_source(
-                data_source, data_config.trajectory.rollout_steps
+                data_source,
+                data_config.trajectory.rollout_steps,
+                data_config.trajectory.n_input_snapshots,
             )
             train_indices, val_indices = split_dataset_indices(
                 dataset, train_split, val_split
