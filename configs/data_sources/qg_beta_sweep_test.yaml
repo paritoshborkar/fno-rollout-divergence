@@ -1,0 +1,4 @@
+name: qg_beta_sweep_test
+type: local
+path: data/raw/qg_beta_forced/beta_sweep/physics_beta/5_seed482976892.nc
+channels: [zeta]
