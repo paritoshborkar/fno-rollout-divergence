@@ -18,12 +18,14 @@ class NeuralopsTrajectoryDataset(Dataset):
         file_paths: list[Path],
         channel_names: list[str],
         rollout_steps: int = 1,
+        n_input_snapshots: int = 1,
         channel_dim=1,
     ):
         """
         path: Path to directory with trajectory NetCDF files
         channel_names: Channel names per snapshot of the trajectory
-        rollout_steps: Trajectory slicing
+        rollout_steps: Number of snapshots as prediction
+        n_input_snapshots: Number of snapshots as input
         """
 
         super().__init__()
@@ -33,13 +35,16 @@ class NeuralopsTrajectoryDataset(Dataset):
         self.channel_names = channel_names
         self.channel_dim = channel_dim
         self.rollout_steps = rollout_steps
+        self.n_input_snapshots = n_input_snapshots
         self.trajectories = self._load_trajectories()
 
         self.indices = [
             (traj_index, time_index)
             for traj_index, trajectory in enumerate(self.trajectories)
             for time_index in range(
-                trajectory.size(0) - self.rollout_steps
+                self.n_input_snapshots - 1,
+                trajectory.size(0)
+                - self.rollout_steps,  # Every time window is of size n_input_snapshots + rollout_steps
             )  # 0th dimension for time
         ]  # Creates a tuple of (trajectory index, time index) for each trajectory
 
@@ -57,9 +62,15 @@ class NeuralopsTrajectoryDataset(Dataset):
         traj_index, time_index = self.indices[index]
         trajectory = self.trajectories[traj_index]
 
+        _, Channels, Height, Width = trajectory.shape
+
         return {
-            "x": trajectory[time_index],
-            "y": trajectory[time_index + self.rollout_steps],
+            "x": trajectory[
+                time_index - self.n_input_snapshots + 1 : time_index + 1, ...
+            ].reshape(
+                self.n_input_snapshots * Channels, Height, Width # Previous snapshots are shaped as channel inputs
+            ),
+            "y": trajectory[time_index + self.rollout_steps, ...],
         }
 
     def _load_trajectories(self) -> list[torch.Tensor]:
