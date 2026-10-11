@@ -49,9 +49,8 @@ configs/                        # Hydra config groups
                                    #   at a parent that contains both a training pool and a held-out test/
                                    #   subdirectory can silently leak test trajectories into training if the
                                    #   filter doesn't account for that.
-  model/fno2d.yaml                #   in_channels is NOT automatically kept in sync with data.trajectory's
-                                   #   n_input_snapshots (see fnorollout/data/datasets.py below) - must currently
-                                   #   be set by hand to n_input_snapshots * len(channels)
+  model/fno2d.yaml                #   in_channels must be set by hand to n_input_snapshots * len(channels) - not
+                                   #   automatically kept in sync (see fnorollout/data/datasets.py below)
   training/default.yaml           #   optimizer, scheduler, dataloader batch sizes (train/val/test), artifacts
                                    #   (path, save_every) — training_loss/eval_losses live in the loss config
                                    #   group, not here
@@ -66,10 +65,8 @@ configs/                        # Hydra config groups
                                    #   (`# @package _global_`). Convention: each file sets its own `id` (a float,
                                    #   e.g. 1.0, 2.1 for sub-variants), used via `${id}` interpolation in both
                                    #   hydra.run.dir (outputs/training_experiment_<id>) and wandb.name - keep these
-                                   #   two in sync by hand per file, nothing enforces it. `default.yaml` here is a
-                                   #   stale leftover from the old single `configs/experiment/baseline.yaml` (still
-                                   #   references `+experiment=baseline` and a `training.lr` key that doesn't match
-                                   #   training/default.yaml's actual shape) - not part of the current pattern.
+                                   #   two in sync by hand per file, nothing enforces it. `default.yaml` here
+                                   #   predates that convention and doesn't follow it - skip it as a reference.
   rollout_experiments/             #   +rollout_experiments=<name> override bundles for rollout_fno2d.py. Each file
                                    #   sets its own `id` (this rollout experiment's id) plus a mandatory
                                    #   `training_experiment_id: ???` that must match the training run's own `id`
