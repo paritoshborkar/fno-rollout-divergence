@@ -82,13 +82,19 @@ def load_test_data(
     return trajectory, dataset_nc
 
 
-def get_initial_snapshot(
-    trajectory: torch.Tensor, start_index: int = 0
+def get_initial_snapshots(
+    trajectory: torch.Tensor, start_index: int = 0, n_input_snapshots: int = 1
 ) -> torch.Tensor:
     """
     Returns the first snapshot from a trajectory
+
+    returns shape -> T x C x H x W
     """
-    return trajectory[start_index, ...].unsqueeze(dim=0)
+    # _, C, H, W = trajectory.shape
+    return trajectory[start_index - n_input_snapshots + 1 : start_index + 1, ...]
+    # .reshape(C * n_input_snapshots, H, W)
+    # .unsqueeze(dim=0)
+    # )
 
 
 def instantiate_model(
@@ -111,25 +117,38 @@ def instantiate_model(
 def rollout(
     model: torch.nn.Module,
     data_processor: DefaultDataProcessor,
-    initial_snapshot: torch.Tensor,
-    rollout_steps=100,
+    initial_snapshots: torch.Tensor,
+    rollout_steps: int = 100,
+    n_input_snapshots: int = 1,
 ):
     """
-    Run an autoregressive rollout using a trained FNO2D model
+    Run an autoregressive rollout using a trained FNO2D model.
+
+    data_processor: Pre/post processing applied on raw trajectory snapshots
+    initial_snapshots: Initial trajectory snapshots to rollout from: Shape -> 1 x C * n_input_snapshots x H x W
+    rollout_steps: Number of time steps to rollout from the initial snapshots
+    n_input_snapshots: Number of time snapshots stacked into the channel dimension
     """
 
     model.eval()
 
-    # Apply data preprocessing
-    # Normalize sample
-    current_snapshot = data_processor.in_normalizer.transform(initial_snapshot)
+    normalized_snapshots = data_processor.in_normalizer.transform(initial_snapshots)
 
-    snapshots = [current_snapshot]
+    # Individual (1, C, H, W) snapshots, oldest first - the window is at the end
+    snapshots = list(torch.unbind(normalized_snapshots, dim=0))
+    snapshots = [
+        snapshot.unsqueeze(dim=0) for snapshot in snapshots
+    ]  # Maintain dimension of 1 x C x H x W for each snapshot
+
+    current_window = torch.cat(
+        snapshots[-n_input_snapshots:], dim=1
+    )  # Stack snapshots along channel dimension
+
     for _ in range(rollout_steps):
-        next_snapshot = model.forward(current_snapshot)
+        next_snapshot = model.forward(current_window)
         snapshots.append(next_snapshot)
 
-        current_snapshot = next_snapshot
+        current_window = torch.cat(snapshots[-n_input_snapshots:], dim=1)
 
     # Apply data postrocessing
     predicted_trajectory = torch.cat(snapshots, dim=0)
@@ -207,22 +226,26 @@ def main(config: DictConfig):
     test_trajectory, test_dataset_nc = load_test_data(test_data_source=test_data_source)
 
     start_index = config.start_index
-    initial_snapshot = get_initial_snapshot(
-        trajectory=test_trajectory, start_index=start_index
+    rollout_steps = config.rollout_steps
+    n_input_snapshots = data_config.trajectory.n_input_snapshots
+
+    initial_snapshots = get_initial_snapshots(
+        trajectory=test_trajectory,
+        start_index=start_index,
+        n_input_snapshots=n_input_snapshots,
     )
 
     model = instantiate_model(
         model_config=model_config, artifacts=config.artifacts, device=device
     )
 
-    rollout_steps = config.rollout_steps
-
     print(f"Performing FNO2D rollout with {rollout_steps} time steps")
     predicted_trajectory = rollout(
         model=model,
         data_processor=data_processor,
-        initial_snapshot=initial_snapshot,
+        initial_snapshots=initial_snapshots,
         rollout_steps=rollout_steps,
+        n_input_snapshots=n_input_snapshots,
     )
 
     output_path = Path(config.output_path)
