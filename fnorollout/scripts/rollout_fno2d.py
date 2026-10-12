@@ -13,7 +13,7 @@ import hydra
 import numpy as np
 import torch
 import xarray as xr
-from hydra.utils import get_class, instantiate
+from hydra.utils import get_class, instantiate, to_absolute_path
 from neuralop.data.transforms.data_processors import DefaultDataProcessor
 from omegaconf import DictConfig, OmegaConf
 
@@ -28,7 +28,7 @@ def load_train_run_config(artifacts: DictConfig) -> DictConfig:
     """
     Loading merged config file used for training the model
     """
-    train_run_config_path = Path(artifacts.path).absolute() / artifacts.train_config
+    train_run_config_path = Path(to_absolute_path(artifacts.path)) / artifacts.train_config
     return OmegaConf.load(train_run_config_path)
 
 
@@ -39,7 +39,7 @@ def load_data_processor(
     Loads a neuralops DefaultDataProcessor that was created as part of a previous
     training run
     """
-    artifacts_path = Path(artifacts.path).absolute()
+    artifacts_path = Path(to_absolute_path(artifacts.path))
     state_dict = torch.load(artifacts_path / artifacts.data_processor)
 
     normalizer_config = data_config.preprocessing.normalizer
@@ -68,8 +68,7 @@ def load_test_data(
     coordinates for the saved predicted trajectory).
     """
 
-    test_filepath = Path(test_data_source.path)
-    test_filepath = test_filepath.absolute()
+    test_filepath = Path(to_absolute_path(str(test_data_source.path)))
     dataset_nc = xr.open_dataset(test_filepath)
 
     channel_data = [
@@ -104,7 +103,7 @@ def instantiate_model(
     Instantiate model from trained model dict
     """
     model = instantiate(model_config)
-    artifacts_path = Path(artifacts.path).absolute()
+    artifacts_path = Path(to_absolute_path(artifacts.path))
 
     model_filepath = artifacts_path / artifacts.model
     model.load_state_dict(
@@ -239,7 +238,7 @@ def main(config: DictConfig):
         model_config=model_config, artifacts=config.artifacts, device=device
     )
 
-    print(f"Performing FNO2D rollout with {rollout_steps} time steps")
+    print(f"Performing FNO2D rollout for {rollout_steps} time steps")
     predicted_trajectory = rollout(
         model=model,
         data_processor=data_processor,

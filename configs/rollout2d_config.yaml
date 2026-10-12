@@ -2,6 +2,12 @@ defaults:
   - data_sources: qg_beta_forced_test
   - _self_
 
+hydra:
+  run:
+    dir: experiments/${utcnow:%Y-%m-%d}/${utcnow:%H-%M-%S}
+  job:
+    chdir: true
+
 rollout_steps: 800
 start_index: 0
 
@@ -13,5 +19,5 @@ artifacts:
   optimizer: optimizer.pt
   scheduler: scheduler.pt
 
-output_path: ???
+output_path: rollout_prediction.nc
 device: cpu
