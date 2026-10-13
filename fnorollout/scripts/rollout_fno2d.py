@@ -13,7 +13,7 @@ import hydra
 import numpy as np
 import torch
 import xarray as xr
-from hydra.utils import get_class, instantiate
+from hydra.utils import get_class, instantiate, to_absolute_path
 from neuralop.data.transforms.data_processors import DefaultDataProcessor
 from omegaconf import DictConfig, OmegaConf
 
@@ -28,7 +28,9 @@ def load_train_run_config(artifacts: DictConfig) -> DictConfig:
     """
     Loading merged config file used for training the model
     """
-    train_run_config_path = Path(artifacts.path).absolute() / artifacts.train_config
+    train_run_config_path = (
+        Path(to_absolute_path(artifacts.path)) / artifacts.train_config
+    )
     return OmegaConf.load(train_run_config_path)
 
 
@@ -39,7 +41,7 @@ def load_data_processor(
     Loads a neuralops DefaultDataProcessor that was created as part of a previous
     training run
     """
-    artifacts_path = Path(artifacts.path).absolute()
+    artifacts_path = Path(to_absolute_path(artifacts.path))
     state_dict = torch.load(artifacts_path / artifacts.data_processor)
 
     normalizer_config = data_config.preprocessing.normalizer
@@ -68,8 +70,7 @@ def load_test_data(
     coordinates for the saved predicted trajectory).
     """
 
-    test_filepath = Path(test_data_source.path)
-    test_filepath = test_filepath.absolute()
+    test_filepath = Path(to_absolute_path(str(test_data_source.path)))
     dataset_nc = xr.open_dataset(test_filepath)
 
     channel_data = [
@@ -90,11 +91,7 @@ def get_initial_snapshots(
 
     returns shape -> T x C x H x W
     """
-    # _, C, H, W = trajectory.shape
     return trajectory[start_index - n_input_snapshots + 1 : start_index + 1, ...]
-    # .reshape(C * n_input_snapshots, H, W)
-    # .unsqueeze(dim=0)
-    # )
 
 
 def instantiate_model(
@@ -104,7 +101,7 @@ def instantiate_model(
     Instantiate model from trained model dict
     """
     model = instantiate(model_config)
-    artifacts_path = Path(artifacts.path).absolute()
+    artifacts_path = Path(to_absolute_path(artifacts.path))
 
     model_filepath = artifacts_path / artifacts.model
     model.load_state_dict(
@@ -132,17 +129,18 @@ def rollout(
 
     model.eval()
 
+    # Stack initial snapshots first, then apply normalization
+    _, C, H, W = initial_snapshots.shape
+
+    initial_snapshots = initial_snapshots.reshape(
+        shape=(1, n_input_snapshots * C, H, W)
+    )
     normalized_snapshots = data_processor.in_normalizer.transform(initial_snapshots)
 
     # Individual (1, C, H, W) snapshots, oldest first - the window is at the end
-    snapshots = list(torch.unbind(normalized_snapshots, dim=0))
-    snapshots = [
-        snapshot.unsqueeze(dim=0) for snapshot in snapshots
-    ]  # Maintain dimension of 1 x C x H x W for each snapshot
+    snapshots = list(torch.split(normalized_snapshots, split_size_or_sections=C, dim=1))
 
-    current_window = torch.cat(
-        snapshots[-n_input_snapshots:], dim=1
-    )  # Stack snapshots along channel dimension
+    current_window = normalized_snapshots
 
     for _ in range(rollout_steps):
         next_snapshot = model.forward(current_window)
@@ -239,7 +237,7 @@ def main(config: DictConfig):
         model_config=model_config, artifacts=config.artifacts, device=device
     )
 
-    print(f"Performing FNO2D rollout with {rollout_steps} time steps")
+    print(f"Performing FNO2D rollout for {rollout_steps} time steps")
     predicted_trajectory = rollout(
         model=model,
         data_processor=data_processor,
