@@ -72,7 +72,7 @@ def train_loop(
     optimizer,
     scheduler,
 ):
-    training_loss = instantiate(next(iter(loss_config.training_loss.values())))
+    training_loss = instantiate(loss_config.training_loss)
     eval_losses = instantiate(loss_config.eval_losses)
 
     return trainer.train(

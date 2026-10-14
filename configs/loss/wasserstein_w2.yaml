@@ -1,0 +1,3 @@
+_target_: fnorollout.loss.wasserstein.WassersteinTwo1DLoss
+reduction: mean
+eps: 1e-5
