@@ -10,7 +10,10 @@ from fnorollout.data.datasets import NeuralopsTrajectoryDataset
 
 
 def load_dataset_from_path(
-    data_source: DictConfig, rollout_steps: int, n_input_snapshots: int
+    data_source: DictConfig,
+    rollout_steps: int,
+    n_input_snapshots: int,
+    slicing_index: int,
 ) -> Dataset:
     """
     Loads a dataset from a local file
@@ -40,11 +43,15 @@ def load_dataset_from_path(
         channel_names=list(data_source.channels),
         rollout_steps=rollout_steps,
         n_input_snapshots=n_input_snapshots,
+        slicing_index=slicing_index
     )
 
 
 def load_dataset_from_source(
-    data_source: DictConfig, rollout_steps: int, n_input_snapshots: int
+    data_source: DictConfig,
+    rollout_steps: int,
+    n_input_snapshots: int,
+    slicing_index: int,
 ) -> Dataset:
     """
     Loads a single data source's dataset according to its source type
@@ -54,22 +61,12 @@ def load_dataset_from_source(
             data_source=data_source,
             rollout_steps=rollout_steps,
             n_input_snapshots=n_input_snapshots,
+            slicing_index=slicing_index,
         )
 
     raise NotImplementedError(
         f"Data source type '{data_source.type}' is not yet supported"
     )
-
-
-def load_dataset(sources: DictConfig, rollout_steps: int) -> Dataset:
-    """
-    Loads and concatenates datasets from a mapping of named data sources
-    """
-    datasets = [
-        load_dataset_from_source(data_source, rollout_steps)
-        for data_source in sources.values()
-    ]
-    return ConcatDataset(datasets)
 
 
 def split_dataset_indices(
@@ -133,6 +130,7 @@ def create_neuralop_dataloaders(
                 data_source=data_source,
                 rollout_steps=data_config.trajectory.rollout_steps,
                 n_input_snapshots=data_config.trajectory.n_input_snapshots,
+                slicing_index=data_config.preprocessing.slicing.index,
             )
             for data_source in data_config.sources.values()
         ]
@@ -142,6 +140,7 @@ def create_neuralop_dataloaders(
                 data_source=data_source,
                 rollout_steps=data_config.trajectory.rollout_steps,
                 n_input_snapshots=data_config.trajectory.n_input_snapshots,
+                slicing_index=data_config.preprocessing.slicing.index,
             )
             for data_source in data_config.test_sources.values()
         ]
@@ -166,9 +165,10 @@ def create_neuralop_dataloaders(
         val_datasets: list[tuple[int, Dataset]] = []
         for data_source in data_config.sources.values():
             dataset = load_dataset_from_source(
-                data_source,
-                data_config.trajectory.rollout_steps,
-                data_config.trajectory.n_input_snapshots,
+                data_source=data_source,
+                rollout_steps=data_config.trajectory.rollout_steps,
+                n_input_snapshots=data_config.trajectory.n_input_snapshots,
+                slicing_index=data_config.preprocessing.slicing.index
             )
             train_indices, val_indices = split_dataset_indices(
                 dataset, train_split, val_split
