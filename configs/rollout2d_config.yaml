@@ -9,7 +9,7 @@ hydra:
     chdir: true
 
 rollout_steps: 800
-start_index: 0
+start_index: 150
 
 artifacts:
   path: ???

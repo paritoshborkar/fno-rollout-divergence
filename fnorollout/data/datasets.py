@@ -19,6 +19,7 @@ class NeuralopsTrajectoryDataset(Dataset):
         channel_names: list[str],
         rollout_steps: int = 1,
         n_input_snapshots: int = 1,
+        slicing_index: int = 0,
         channel_dim=1,
     ):
         """
@@ -26,6 +27,7 @@ class NeuralopsTrajectoryDataset(Dataset):
         channel_names: Channel names per snapshot of the trajectory
         rollout_steps: Number of snapshots as prediction
         n_input_snapshots: Number of snapshots as input
+        slicing_index: Time dimension index to slice after and include in the samples
         """
 
         super().__init__()
@@ -42,7 +44,7 @@ class NeuralopsTrajectoryDataset(Dataset):
             (traj_index, time_index)
             for traj_index, trajectory in enumerate(self.trajectories)
             for time_index in range(
-                self.n_input_snapshots - 1,
+                slicing_index + self.n_input_snapshots - 1,
                 trajectory.size(0)
                 - self.rollout_steps,  # Every time window is of size n_input_snapshots + rollout_steps
             )  # 0th dimension for time
@@ -68,7 +70,9 @@ class NeuralopsTrajectoryDataset(Dataset):
             "x": trajectory[
                 time_index - self.n_input_snapshots + 1 : time_index + 1, ...
             ].reshape(
-                self.n_input_snapshots * Channels, Height, Width # Previous snapshots are shaped as channel inputs
+                self.n_input_snapshots * Channels,
+                Height,
+                Width,  # Previous snapshots are shaped as channel inputs
             ),
             "y": trajectory[time_index + self.rollout_steps, ...],
         }
