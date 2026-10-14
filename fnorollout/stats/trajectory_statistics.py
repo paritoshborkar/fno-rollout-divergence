@@ -210,7 +210,7 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         baseline_window: tuple[int, int | None] = (0, None),
     ) -> np.float64:
         """
-        Returns the Wasserstein distance between this trajectory and a baseline trajectory
+        Returns the 1D Wasserstein distance between this trajectory and a baseline trajectory
         """
         pred_flattened = self.trajectory[pred_window[0] : pred_window[1], ...].ravel()
         baseline_flattened = baseline_trajectory[
