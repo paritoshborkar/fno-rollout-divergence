@@ -44,9 +44,9 @@ class NeuralopsTrajectoryDataset(Dataset):
             (traj_index, time_index)
             for traj_index, trajectory in enumerate(self.trajectories)
             for time_index in range(
-                slicing_index + self.n_input_snapshots - 1,
+                slicing_index + self.n_input_snapshots,
                 trajectory.size(0)
-                - self.rollout_steps,  # Every time window is of size n_input_snapshots + rollout_steps
+                - self.rollout_steps - 1,  # Every time window is of size n_input_snapshots + rollout_steps
             )  # 0th dimension for time
         ]  # Creates a tuple of (trajectory index, time index) for each trajectory
 
@@ -74,7 +74,7 @@ class NeuralopsTrajectoryDataset(Dataset):
                 Height,
                 Width,  # Previous snapshots are shaped as channel inputs
             ),
-            "y": trajectory[time_index + self.rollout_steps, ...],
+            "y": trajectory[time_index + 1: time_index + 1 + self.rollout_steps, ...],
         }
 
     def _load_trajectories(self) -> list[torch.Tensor]:
