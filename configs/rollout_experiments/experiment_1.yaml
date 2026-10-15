@@ -1,8 +1,8 @@
 # @package _global_
-# Usage: uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_1 training_experiment_id=1.0
+# Usage: uv run python -m fnorollout.scripts.rollout_fno2d +rollout_experiments=experiment_1 training_experiment_id='1.0'
 
-id: 1.0
-training_experiment_id: ??? # must match the training run's own id (float, e.g. 1.0)
+id: "1.0"
+training_experiment_id: ??? # must match the training run's own id (string, e.g. '1.0' - quote it and use escape characters on the CLI too, an unquoted float silently truncates, e.g. 2.10 -> 2.1)
 start_index: 100 # Starts after statistical stabilization
 
 artifacts:
