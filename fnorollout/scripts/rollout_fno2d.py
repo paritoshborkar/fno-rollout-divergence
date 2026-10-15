@@ -143,8 +143,9 @@ def rollout(
     current_window = normalized_snapshots
 
     for _ in range(rollout_steps):
-        next_snapshot = model.forward(current_window)
-        snapshots.append(next_snapshot)
+        predicted_snapshots = model.forward(current_window) # 1 x rollout_steps * C x H x W
+        predicted_snapshots = list(torch.split(predicted_snapshots, split_size_or_sections=C, dim=1))
+        snapshots.extend(predicted_snapshots)
 
         current_window = torch.cat(snapshots[-n_input_snapshots:], dim=1)
 
