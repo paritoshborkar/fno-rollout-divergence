@@ -1,6 +1,6 @@
 # @package _global_
 # Usage: uv run python -m fnorollout.scripts.train_fno2d +training_experiments=experiment_3.4
-id: 3.4
+id: "3.4"
 
 defaults:
   - /data_sources@data.sources.qg_beta_sweep_small: qg_beta_sweep_small

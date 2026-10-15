@@ -3,7 +3,7 @@
 
 # Train with two snapshots as input
 
-id: 3.3
+id: "3.3"
 
 defaults:
   - /data_sources@data.sources.qg_beta_forced: qg_beta_sweep
