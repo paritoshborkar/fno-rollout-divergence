@@ -7,7 +7,7 @@ import xarray as xr
 from torch.utils.data import Dataset
 
 
-class NeuralopsTrajectoryDataset(Dataset):
+class TrajectoryDataset(Dataset):
     """
     Multi-trajectory dataset to track one or more fluid flow variables (e.g. vorticity, streamfunction) over time.
     Follows the dataset format required by the neuralop package trainer
@@ -44,10 +44,9 @@ class NeuralopsTrajectoryDataset(Dataset):
             (traj_index, time_index)
             for traj_index, trajectory in enumerate(self.trajectories)
             for time_index in range(
-                slicing_index + self.n_input_snapshots,
+                slicing_index + self.n_input_snapshots - 1,
                 trajectory.size(0)
-                - self.rollout_steps
-                - 1,  # Every time window is of size n_input_snapshots + rollout_steps
+                - self.rollout_steps,  # Every time window is of size n_input_snapshots + rollout_steps
             )  # 0th dimension for time
         ]  # Creates a tuple of (trajectory index, time index) for each trajectory
 
@@ -102,3 +101,62 @@ class NeuralopsTrajectoryDataset(Dataset):
             trajectories.append(trajectory)
 
         return trajectories
+
+
+class TrajectoryDeltaDataset(TrajectoryDataset):
+    """
+    Multi-trajectory dataset of delta values to track one or more fluid flow variables,
+    (e.g. vorticity, streamfunction) over time.
+    Follows the dataset format required by the neuralop package trainer.
+
+    Each y is the change in values in time after the input snapshots
+    """
+
+    def __init__(
+        self,
+        file_paths,
+        channel_names,
+        rollout_steps=1,
+        n_input_snapshots=1,
+        slicing_index=0,
+        channel_dim=1,
+    ):
+        super().__init__(
+            file_paths,
+            channel_names,
+            rollout_steps,
+            n_input_snapshots,
+            slicing_index,
+            channel_dim,
+        )
+
+    def __getitem__(self, index: int):
+        """
+        Returns a snapshot with key value "x"
+        and the next snapshot in the rollout step with key value "y"
+
+        x and y are used to match with expected keys by neuralop package,
+        not to be confused with x and y axes
+        """
+        traj_index, time_index = self.indices[index]
+        trajectory = self.trajectories[traj_index]
+
+        _, Channels, Height, Width = trajectory.shape
+
+        next_snapshots = trajectory[
+            time_index : time_index + 1 + self.rollout_steps, ...
+        ]
+        y = torch.diff(next_snapshots, dim=0) # Calculate delta between adjacent snapshots
+
+        return {
+            "x": trajectory[
+                time_index - self.n_input_snapshots + 1 : time_index + 1, ...
+            ].reshape(
+                self.n_input_snapshots * Channels,
+                Height,
+                Width,
+            ),  # Previous snapshots are shaped as channel inputs
+            "y": y.reshape(
+                self.rollout_steps * Channels, Height, Width
+            ),  # Future snapshots are shaped as channel outputs
+        }
