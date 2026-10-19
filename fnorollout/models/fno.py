@@ -1,4 +1,5 @@
 from neuralop.models import FNO
+from torch import nn
 
 
 def build_fno2d(
@@ -7,6 +8,7 @@ def build_fno2d(
     n_modes: list[int],
     hidden_channels: int,
     n_layers: int,
+    positional_embedding: str | nn.Module | None 
 ) -> FNO:
     """
     Instantiates and returns a FNO model from the neuralop package
@@ -17,4 +19,5 @@ def build_fno2d(
         out_channels=out_channels,
         hidden_channels=hidden_channels,
         n_layers=n_layers,
+        positional_embedding=positional_embedding
     )
