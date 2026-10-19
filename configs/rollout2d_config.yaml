@@ -8,7 +8,7 @@ hydra:
   job:
     chdir: true
 
-rollout_steps: 800
+rollout_snapshots: 800 # total number of future snapshots to produce
 start_index: 150
 
 artifacts:

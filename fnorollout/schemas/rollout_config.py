@@ -11,7 +11,7 @@ class Rollout2DConfig(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     device: str
-    rollout_steps: int
+    rollout_snapshots: int
     start_index: int = 0
     artifacts: dict[str, str]
     data_sources: LocalDataSource
