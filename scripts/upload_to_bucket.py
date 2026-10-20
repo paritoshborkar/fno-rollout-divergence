@@ -1,8 +1,11 @@
 """
-Upload NetCDF trajectory data files to external storage
+Upload data files to external S3 bucket. The S3 key for each
+uploaded file is computed relative to --base-dir, defaulting to "data/raw".
 
 ```
 uv run python -m scripts.upload_to_bucket --path <Path to file/dir>
+uv run python -m scripts.upload_to_bucket --path outputs/training_experiment_1 \
+    --base-dir outputs --bucket-name "$FNO_ROLLOUT_ARTIFACTS_BUCKET_NAME"
 ```
 """
 
@@ -18,13 +21,13 @@ from dotenv import load_dotenv
 load_dotenv("dev_no_docker.env")
 
 
-def main(data_path: str):
+def main(data_path: str, base_dir: str = "data/raw", bucket_name: str | None = None):
     access_key_id = os.getenv("BUCKET_ACCESS_KEY_ID")
     secret_access_key = os.getenv("BUCKET_SECRET_ACCESS_KEY")
     endpoint_url = os.getenv("ENDPOINT_URL")
 
-    # Read bucket name and endpoint from env file
-    bucket_name = os.getenv("FNO_ROLLOUT_BUCKET_NAME")
+    # Falls back to the data/raw bucket's name if --bucket-name isn't given
+    bucket_name = bucket_name or os.getenv("FNO_ROLLOUT_BUCKET_NAME")
 
     # Authenticate
     s3_client = boto3.client(
@@ -45,7 +48,7 @@ def main(data_path: str):
 
     # Check if directory does not already exist
     path = Path(data_path)
-    data_raw_path = Path("data/raw")
+    local_base_path = Path(base_dir)
 
     # A single file uploads itself. A directory uploads every file under it.
     file_paths = (
@@ -56,7 +59,7 @@ def main(data_path: str):
 
     files_uploaded = 0
     for sub_path in file_paths:
-        s3_path = sub_path.relative_to(data_raw_path)
+        s3_path = sub_path.relative_to(local_base_path)
 
         try:
             s3_client.head_object(Bucket=bucket_name, Key=str(s3_path))
@@ -80,6 +83,21 @@ if __name__ == "__main__":
     # Directory path
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", help="Path to data file or directory")
+    parser.add_argument(
+        "--base-dir",
+        default="data/raw",
+        help="Local directory the uploaded S3 key is computed relative to "
+        "(default: data/raw)",
+    )
+    parser.add_argument(
+        "--bucket-name",
+        default=None,
+        help="Bucket to upload to (default: $FNO_ROLLOUT_BUCKET_NAME)",
+    )
     cmd_args = parser.parse_args()
 
-    main(data_path=cmd_args.path)
+    main(
+        data_path=cmd_args.path,
+        base_dir=cmd_args.base_dir,
+        bucket_name=cmd_args.bucket_name,
+    )
