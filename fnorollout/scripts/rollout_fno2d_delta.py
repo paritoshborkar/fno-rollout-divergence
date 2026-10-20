@@ -66,7 +66,6 @@ def rollout_delta(
         predicted_snapshots = real_snapshots[-1] + predicted_deltas.cumsum(dim=0)
         real_snapshots.extend(predicted_snapshots)
 
-        stacked_snapshots = torch.cat(real_snapshots[-n_input_snapshots:], dim=1)
         current_window = data_processor.in_normalizer.transform(
             torch.cat(real_snapshots[-n_input_snapshots:], dim=1)
         )
