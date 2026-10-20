@@ -57,15 +57,16 @@ def rollout_delta(
 
     for _ in range(rollout_steps):
         predicted_deltas = model.forward(current_window)  # 1 x rollout_steps * C x H x W, out_normalizer space
+        predicted_deltas = data_processor.out_normalizer.inverse_transform(predicted_deltas)
         predicted_deltas = torch.stack(
             torch.split(predicted_deltas, split_size_or_sections=C, dim=1), dim=0
-        )
-        predicted_deltas = data_processor.out_normalizer.inverse_transform(predicted_deltas)
+        ) # rollout_steps x 1 x C x H x W
 
         # Deltas are added to the last real valued snapshot
         predicted_snapshots = real_snapshots[-1] + predicted_deltas.cumsum(dim=0)
         real_snapshots.extend(predicted_snapshots)
 
+        stacked_snapshots = torch.cat(real_snapshots[-n_input_snapshots:], dim=1)
         current_window = data_processor.in_normalizer.transform(
             torch.cat(real_snapshots[-n_input_snapshots:], dim=1)
         )
