@@ -1,0 +1,10 @@
+_target_: fnorollout.loss.composite.CompositeLoss
+loss_dist:
+  - - 0.7
+    - _target_: neuralop.LpLoss
+      d: 2 # dimension of input functions
+      p: 2 # L2 norm
+  - - 0.3
+    - _target_: fnorollout.loss.wasserstein.WassersteinOne1DLoss
+      reduction: mean
+      eps: 1e-5
