@@ -4,12 +4,8 @@ id: "2.2"
 
 defaults:
   - /data_sources@data.sources.qg_beta_forced: qg_beta_forced
+  - override /loss@training_loss: l2
   - override /data_sources@data.sources.torus2d_example: null # Remove default data source
-
-loss:
-  defaults:
-    - /loss@training_loss.l2: l2
-    - override /loss@training_loss.h1: null
 
 hydra:
   run:
