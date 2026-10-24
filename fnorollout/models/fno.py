@@ -8,7 +8,7 @@ def build_fno2d(
     n_modes: list[int],
     hidden_channels: int,
     n_layers: int,
-    positional_embedding: str | nn.Module | None 
+    positional_embedding: str | nn.Module | None = "grid",
 ) -> FNO:
     """
     Instantiates and returns a FNO model from the neuralop package
