@@ -4,4 +4,4 @@ out_channels: 1
 n_modes: [16, 16]
 hidden_channels: 32
 n_layers: 4
-positional_embedding: null
+positional_embedding: "grid"
