@@ -41,35 +41,38 @@ def rollout(
 
     model.eval()
 
-    # Stack initial snapshots first, then apply normalization
     _, C, H, W = initial_snapshots.shape
-
     initial_snapshots = initial_snapshots.reshape(
         shape=(1, n_input_snapshots * C, H, W)
     )
-    normalized_snapshots = data_processor.in_normalizer.transform(initial_snapshots)
 
-    # Individual (1, C, H, W) snapshots, oldest first - the window is at the end
-    snapshots = list(torch.split(normalized_snapshots, split_size_or_sections=C, dim=1))
+    # In and Out normalizers have different statistics, 
+    # so predicted snapshots must be inversed transformed first before
+    # adding to raw values
+    real_snapshots = list(
+        torch.split(initial_snapshots, split_size_or_sections=C, dim=1)
+    )
 
-    current_window = normalized_snapshots
+    current_window = data_processor.in_normalizer.transform(initial_snapshots)
 
     for _ in range(rollout_steps):
         predicted_snapshots = model.forward(
             current_window
-        )  # 1 x rollout_steps * C x H x W
+        )  # 1 x rollout_steps * C x H x W, out_normalizer space
+        predicted_snapshots = data_processor.out_normalizer.inverse_transform(
+            predicted_snapshots
+        )
         predicted_snapshots = list(
             torch.split(predicted_snapshots, split_size_or_sections=C, dim=1)
         )
-        snapshots.extend(predicted_snapshots)
+        real_snapshots.extend(predicted_snapshots)
 
-        current_window = torch.cat(snapshots[-n_input_snapshots:], dim=1)
+        current_window = data_processor.in_normalizer.transform(
+            torch.cat(real_snapshots[-n_input_snapshots:], dim=1)
+        )
 
-    # Apply data postrocessing
-    predicted_trajectory = torch.cat(snapshots, dim=0)
-    predicted_trajectory = data_processor.out_normalizer.inverse_transform(
-        predicted_trajectory
-    )
+    # real_snapshots was never in a normalized space - no final inverse_transform needed
+    predicted_trajectory = torch.cat(real_snapshots, dim=0)
 
     return predicted_trajectory
 
