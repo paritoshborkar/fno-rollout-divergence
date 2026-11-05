@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import xarray as xr
 
-from fnorollout.stats.trajectory_statistics import Vorticity2DTrajectoryStatistics
+from fnorollout.stats.trajectory_metrics import Vorticity2DTrajectoryMetrics
 
 
 def load_netcdf_to_torch(
@@ -33,16 +33,16 @@ def load_netcdf_to_torch(
 
 def get_trajectory_statistics(
     trajectory: Path, x_axis: np.ndarray, y_axis: np.ndarray
-) -> Vorticity2DTrajectoryStatistics:
+) -> Vorticity2DTrajectoryMetrics:
     dx = x_axis[1] - x_axis[0]
     dy = y_axis[1] - y_axis[0]
 
-    return Vorticity2DTrajectoryStatistics(trajectory=trajectory, dx=dx, dy=dy)
+    return Vorticity2DTrajectoryMetrics(trajectory=trajectory, dx=dx, dy=dy)
 
 
 def get_comparative_scalar_metrics(
-    real_stats: Vorticity2DTrajectoryStatistics,
-    pred_stats: Vorticity2DTrajectoryStatistics,
+    real_stats: Vorticity2DTrajectoryMetrics,
+    pred_stats: Vorticity2DTrajectoryMetrics,
 ) -> str:
     time_steps = real_stats.trajectory.shape[0]
     rms_vorticity = real_stats.vorticity_rms()
@@ -93,8 +93,8 @@ def get_comparative_scalar_metrics(
 
 
 def plot_comparisons(
-    pred_stats: Vorticity2DTrajectoryStatistics,
-    real_stats: Vorticity2DTrajectoryStatistics,
+    pred_stats: Vorticity2DTrajectoryMetrics,
+    real_stats: Vorticity2DTrajectoryMetrics,
 ):
     # Predicted trajcetory statistics
     pred_enstrophy_per_snapshot = pred_stats.enstrophy_per_snapshot()

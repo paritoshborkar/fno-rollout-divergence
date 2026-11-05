@@ -2,17 +2,18 @@
 
 import numpy as np
 import torch
+from neuralop import H1Loss
 from scipy.stats import wasserstein_distance
 
 
-class TrajectoryStatistics:
+class TrajectoryMetrics:
     def __init__(self, trajectory: torch.Tensor, dx: float = 1.0, dy: float = 1.0):
         self.trajectory = trajectory
         self.dx = dx
         self.dy = dy
 
 
-class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
+class Vorticity2DTrajectoryMetrics(TrajectoryMetrics):
     def __init__(self, trajectory: torch.Tensor, dx: float = 1.0, dy: float = 1.0):
         """
         trajectory: torch Tensor tracking vorticity over a 2D grid. Shape: T x Y x X
@@ -89,6 +90,40 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
 
         k_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
         return k_centers, psd
+
+    def kinetic_energy_psd_per_snapshot(
+        self, n_bins: int | None = None
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Calculates the isotropic kinetic energy spectrum E(k): 0.5*(|u_hat(k)|^2 +
+        |v_hat(k)|^2), radially binned over wavenumber magnitude |k|, derived from
+        vorticity via the streamfunction-based velocity field (velocity_per_snapshot).
+
+        Returns (k_bins, energy_spectrum) where k_bins has shape (n_bins,) and
+        energy_spectrum has shape (T, n_bins).
+        """
+        u, v = self.velocity_per_snapshot()
+        u_hat = torch.fft.fft2(u, dim=(-2, -1))
+        v_hat = torch.fft.fft2(v, dim=(-2, -1))
+        power = 0.5 * (u_hat.abs() ** 2 + v_hat.abs() ** 2)
+
+        Kx, Ky = self._wavenumber_grids()
+        k = torch.sqrt(Kx**2 + Ky**2)
+
+        ny, nx = self.trajectory.shape[-2], self.trajectory.shape[-1]
+        n_bins = n_bins or max(nx, ny) // 2
+        bin_edges = torch.linspace(0, k.max(), n_bins + 1, device=k.device)
+        bin_indices = torch.bucketize(k.flatten(), bin_edges[1:-1])
+
+        power_flat = power.reshape(*power.shape[:-2], -1)
+        energy_spectrum = torch.zeros(*power.shape[:-2], n_bins, device=power.device)
+        for b in range(n_bins):
+            mask = bin_indices == b
+            if mask.any():
+                energy_spectrum[..., b] = power_flat[..., mask].sum(dim=-1)
+
+        k_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+        return k_centers, energy_spectrum
 
     def enstrophy_per_snapshot(self) -> torch.Tensor:
         """
@@ -175,6 +210,23 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         """
         return self.relative_l2_per_snapshot(baseline_trajectory).mean()
 
+    def h1_per_snapshot(self, baseline_trajectory: torch.Tensor) -> torch.Tensor:
+        """
+        H1 Sobolev-norm loss (neuralop.H1Loss, the same loss used for training)
+        against a baseline trajectory, computed independently at each timestep -
+        each snapshot is treated as its own batch-of-1 sample. Shape: (T,)
+        """
+        h1_loss = H1Loss(d=2, reduction="mean")
+        num_timesteps = self.trajectory.shape[0]
+        return torch.stack(
+            [
+                h1_loss(
+                    self.trajectory[t : t + 1, ...], baseline_trajectory[t : t + 1, ...]
+                )
+                for t in range(num_timesteps)
+            ]
+        )
+
     def energy_drift_per_snapshot(
         self, baseline_trajectory: torch.Tensor
     ) -> torch.Tensor:
@@ -182,7 +234,7 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         Difference in kinetic energy density between this trajectory and a baseline,
         at each timestep: KE_self(t) - KE_baseline(t). Shape: (T,)
         """
-        baseline_stats = Vorticity2DTrajectoryStatistics(
+        baseline_stats = Vorticity2DTrajectoryMetrics(
             baseline_trajectory, dx=self.dx, dy=self.dy
         )
         return (
@@ -212,8 +264,8 @@ class Vorticity2DTrajectoryStatistics(TrajectoryStatistics):
         """
         Returns the 1D Wasserstein distance between this trajectory and a baseline trajectory
         """
-        pred_flattened = self.trajectory[pred_window[0] : pred_window[1], ...].ravel()
-        baseline_flattened = baseline_trajectory[
+        pred_flattened = self.trajectory.detach()[pred_window[0] : pred_window[1], ...].ravel()
+        baseline_flattened = baseline_trajectory.detach()[
             baseline_window[0] : baseline_window[1], ...
         ].ravel()
 
