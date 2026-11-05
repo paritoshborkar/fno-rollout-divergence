@@ -40,7 +40,9 @@ def _resolve_time_dim(field: xr.DataArray) -> str:
     raise ValueError(f"no 'time' or 't' dimension found in dims {field.dims}")
 
 
-def _spectrum_magnitude(snapshot: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def _spectrum_magnitude(
+    snapshot: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Computes the (fftshifted) 2D magnitude spectrum of a single snapshot, along with
     its corresponding (fftshifted) wavenumber axes. Assumes unit grid spacing (dx=1,
@@ -59,7 +61,10 @@ def _spectrum_magnitude(snapshot: torch.Tensor) -> tuple[torch.Tensor, torch.Ten
 
 
 def _radial_psd(
-    kx: torch.Tensor, ky: torch.Tensor, magnitude_spectrum: torch.Tensor, n_bins: int | None = None
+    kx: torch.Tensor,
+    ky: torch.Tensor,
+    magnitude_spectrum: torch.Tensor,
+    n_bins: int | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Radially bins power |FFT|^2 over wavenumber magnitude |k| = sqrt(kx^2 + ky^2),
@@ -69,18 +74,23 @@ def _radial_psd(
     Returns (k_bins, psd), each of shape (n_bins,).
     """
     k = torch.sqrt(kx.reshape(-1, 1) ** 2 + ky.reshape(1, -1) ** 2)
-    power = magnitude_spectrum**2
+    power = magnitude_spectrum.double() ** 2
 
     n_bins = n_bins or max(magnitude_spectrum.shape) // 2
     bin_edges = torch.linspace(0, k.max(), n_bins + 1)
     bin_indices = torch.bucketize(k.flatten(), bin_edges[1:-1])
 
     power_flat = power.flatten()
-    psd = torch.zeros(n_bins)
+    psd = torch.zeros(n_bins, dtype=torch.float64)
     for b in range(n_bins):
         mask = bin_indices == b
         if mask.any():
             psd[b] = power_flat[mask].sum()
+
+    psd = torch.nan_to_num(
+        psd.to(magnitude_spectrum.dtype),
+        posinf=torch.finfo(magnitude_spectrum.dtype).max,
+    )
 
     k_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
     return k_centers, psd
@@ -110,7 +120,9 @@ def render_trajectory_video(
     # Precompute snapshots and their magnitude spectra once, so `update` just
     # indexes into them instead of re-slicing xarray / re-running FFTs per frame,
     # and so the spectrum subplot gets a single fixed color scale across the video.
-    snapshots = [torch.from_numpy(field.isel({time_dim: i}).values) for i in range(n_frames)]
+    snapshots = [
+        torch.from_numpy(field.isel({time_dim: i}).values) for i in range(n_frames)
+    ]
     kx, ky, _ = _spectrum_magnitude(snapshots[0])
     spectra = [_spectrum_magnitude(s)[2] for s in snapshots]
     spectrum_vmin = min(s.min().item() for s in spectra)
@@ -125,14 +137,21 @@ def render_trajectory_video(
     psd_ymax = max(p.max().item() for p in psds)
 
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
-    image = ax1.imshow(snapshots[0].numpy(), cmap=cmap, vmin=vmin, vmax=vmax, origin="lower")
+    image = ax1.imshow(
+        snapshots[0].numpy(), cmap=cmap, vmin=vmin, vmax=vmax, origin="lower"
+    )
     fig.colorbar(image, ax=ax1, label=channel)
     title = ax1.set_title(f"{channel} Trajectory")
 
     # kx is derived from the snapshot's row (dim0) size, ky from its column (dim1)
     # size, but imshow plots dim0 along the Y-axis and dim1 along the X-axis, so the
     # extent (and labels) need ky first, then kx, to match.
-    spectrum_extent = [ky.min().item(), ky.max().item(), kx.min().item(), kx.max().item()]
+    spectrum_extent = [
+        ky.min().item(),
+        ky.max().item(),
+        kx.min().item(),
+        kx.max().item(),
+    ]
     spectrum_image = ax2.imshow(
         spectra[0].numpy(),
         cmap="viridis",
@@ -158,7 +177,9 @@ def render_trajectory_video(
 
     def update(frame_index: int):
         image.set_data(snapshots[frame_index].numpy())
-        title.set_text(f"{channel} at {time_dim}={float(field[time_dim][frame_index]):.2f}")
+        title.set_text(
+            f"{channel} at {time_dim}={float(field[time_dim][frame_index]):.2f}"
+        )
         spectrum_image.set_data(spectra[frame_index].numpy())
         psd_line.set_ydata(psds[frame_index].numpy())
         return image, title, spectrum_image, psd_line
@@ -176,7 +197,10 @@ def main() -> None:
     parser.add_argument("path", type=Path, help="Path to a trajectory NetCDF file")
     parser.add_argument("--channel", default="zeta", help="Variable name to render")
     parser.add_argument(
-        "--out", type=Path, default=None, help="Output video path (.mp4, or .gif if ffmpeg is unavailable)"
+        "--out",
+        type=Path,
+        default=None,
+        help="Output video path (.mp4, or .gif if ffmpeg is unavailable)",
     )
     parser.add_argument("--fps", type=int, default=10, help="Frames per second")
     args = parser.parse_args()
